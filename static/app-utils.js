@@ -1,24 +1,38 @@
 // Shared constants, state, storage, API and helpers
-const STORAGE_KEY = 'sqapi-cubes';
+const STORAGE_KEY = 'sqapi-channels';
 const STORAGE_KEY_IP = 'sqapi-sq-ip';
 const API_BASE = '';
 
-let cubes = loadCubes();
+let channels = loadChannels();
 let editMode = false;
 
-function loadCubes() {
+function loadChannels() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    const list = raw ? JSON.parse(raw) : [];
-    list.forEach(normalizeCubePreamp);
-    return list;
+    let raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('sqapi-cubes');
+    if (!raw) return [];
+    const list = JSON.parse(raw);
+    if (!Array.isArray(list)) return [];
+    const out = [];
+    for (let i = 0; i < list.length; i++) {
+      try {
+        const ch = list[i];
+        if (ch && typeof ch === 'object') {
+          normalizeChannelPreamp(ch);
+          out.push(ch);
+        }
+      } catch (_) {}
+    }
+    if (out.length > 0 && !localStorage.getItem(STORAGE_KEY)) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
+    }
+    return out;
   } catch {
     return [];
   }
 }
 
-function saveCubes() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(cubes));
+function saveChannels() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(channels));
 }
 
 function getStoredIP() {
@@ -30,27 +44,28 @@ function setStoredIP(ip) {
 }
 
 function nextId() {
-  const ids = cubes.map(c => c.id).filter(Boolean);
+  const ids = channels.map(c => c.id).filter(Boolean);
   return ids.length ? Math.max(...ids) + 1 : 1;
 }
 
 const PREAMP_LOCAL_MAX = 17;
 const PREAMP_SLINK_MAX = 40;
 
-function normalizeCubePreamp(cube) {
-  if (cube.preampBus === undefined || cube.preampId === undefined) {
-    const ch = Math.min(17, Math.max(1, parseInt(cube.channel, 10) || 1));
-    cube.preampBus = 'local';
-    cube.preampId = ch;
+function normalizeChannelPreamp(channel) {
+  if (!channel || typeof channel !== 'object') return;
+  if (channel.preampBus === undefined || channel.preampId === undefined) {
+    const ch = Math.min(17, Math.max(1, parseInt(channel.channel, 10) || 1));
+    channel.preampBus = 'local';
+    channel.preampId = ch;
   }
-  if (cube.preampBus === 'local' && (cube.preampId < 1 || cube.preampId > PREAMP_LOCAL_MAX))
-    cube.preampId = Math.max(1, Math.min(PREAMP_LOCAL_MAX, cube.preampId));
-  if (cube.preampBus === 'slink' && (cube.preampId < 1 || cube.preampId > PREAMP_SLINK_MAX))
-    cube.preampId = Math.max(1, Math.min(PREAMP_SLINK_MAX, cube.preampId));
+  if (channel.preampBus === 'local' && (channel.preampId < 1 || channel.preampId > PREAMP_LOCAL_MAX))
+    channel.preampId = Math.max(1, Math.min(PREAMP_LOCAL_MAX, channel.preampId));
+  if (channel.preampBus === 'slink' && (channel.preampId < 1 || channel.preampId > PREAMP_SLINK_MAX))
+    channel.preampId = Math.max(1, Math.min(PREAMP_SLINK_MAX, channel.preampId));
 }
 
 function nextPreamp(bus) {
-  const used = new Set(cubes.map(c => `${c.preampBus || 'local'}:${c.preampId ?? c.channel ?? 1}`));
+  const used = new Set(channels.map(c => `${c.preampBus || 'local'}:${c.preampId ?? c.channel ?? 1}`));
   const max = bus === 'slink' ? PREAMP_SLINK_MAX : PREAMP_LOCAL_MAX;
   for (let id = 1; id <= max; id++) {
     if (!used.has(`${bus}:${id}`)) return id;
@@ -104,8 +119,8 @@ function escapeHtml(s) {
   return div.innerHTML;
 }
 
-function displayGain(cube) {
-  return cube.pad ? cube.gain - 20 : cube.gain;
+function displayGain(channel) {
+  return channel.pad ? channel.gain - 20 : channel.gain;
 }
 
 function saveConfig(ip) {

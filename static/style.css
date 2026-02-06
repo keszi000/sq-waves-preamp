@@ -132,14 +132,14 @@ h1 {
 }
 
 body.edit-mode .edit-only {
-  display: inline-block !important;
+  display: revert !important;
 }
 
-body.edit-mode .cube-channel-view {
+body.edit-mode .channel-preamp-view {
   display: none !important;
 }
 
-body:not(.edit-mode) .cube-name {
+body:not(.edit-mode) .channel-name {
   border: none;
   background: transparent;
   cursor: default;
@@ -152,7 +152,7 @@ main {
   gap: 1rem;
 }
 
-.cube {
+.channel {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -162,13 +162,13 @@ main {
   gap: 0.75rem;
 }
 
-.cube-header {
+.channel-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.cube-name {
+.channel-name {
   flex: 1;
   background: transparent;
   border: 1px solid var(--border);
@@ -178,12 +178,12 @@ main {
   font-size: 0.95rem;
 }
 
-.cube-name:focus {
+.channel-name:focus {
   outline: none;
   border-color: var(--accent);
 }
 
-.cube-remove {
+.channel-remove {
   width: 28px;
   height: 28px;
   padding: 0;
@@ -196,24 +196,24 @@ main {
   line-height: 1;
 }
 
-.cube-remove:hover {
+.channel-remove:hover {
   background: rgba(239, 68, 68, 0.2);
   color: var(--danger);
 }
 
-.cube-row {
+.channel-row {
   display: flex;
   align-items: center;
   gap: 0.75rem;
 }
 
-.cube-row label {
+.channel-row label {
   min-width: 4.5rem;
   font-size: 0.85rem;
   color: var(--muted);
 }
 
-.cube select {
+.channel select {
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -223,7 +223,7 @@ main {
   cursor: pointer;
 }
 
-.cube-channel-row select {
+.channel-preamp-row select {
   font-size: 0.8rem;
   padding: 0.3rem 0.45rem;
   min-width: 0;

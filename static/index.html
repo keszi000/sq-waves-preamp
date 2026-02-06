@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SQ Preamp</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=2">
 </head>
 <body>
   <header>
@@ -20,10 +20,10 @@
       <button type="button" id="show-manager-btn" class="btn-manager" title="Export / Import show file">Show manager</button>
       <input type="file" id="import-show" accept=".json,application/json" hidden>
       <button type="button" id="edit-toggle" class="btn-primary">Edit</button>
-      <button type="button" id="add-cube" class="edit-only btn-primary">+ New channel</button>
+      <button type="button" id="add-channel" class="edit-only btn-primary">+ New channel</button>
     </div>
   </header>
-  <main id="cubes"></main>
+  <main id="channels"></main>
 
   <div id="confirm-modal" class="modal" hidden>
     <div class="modal-overlay"></div>
@@ -81,10 +81,10 @@
     </div>
   </div>
 
-  <script src="/static/app-utils.js"></script>
-  <script src="/static/app-modals.js"></script>
-  <script src="/static/app-cubes.js"></script>
-  <script src="/static/app-shows.js"></script>
-  <script src="/static/app.js"></script>
+  <script src="/static/app-utils.js?v=2"></script>
+  <script src="/static/app-modals.js?v=2"></script>
+  <script src="/static/app-channels.js?v=2"></script>
+  <script src="/static/app-shows.js?v=2"></script>
+  <script src="/static/app.js?v=2"></script>
 </body>
 </html>

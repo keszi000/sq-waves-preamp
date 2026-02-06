@@ -58,9 +58,9 @@ func handleGetShow(c *gin.Context) {
 
 func handlePostShow(c *gin.Context) {
 	var body struct {
-		Name  string        `json:"name"`
-		Cubes []interface{} `json:"cubes"`
-		SqIP  string        `json:"sq_ip"`
+		Name     string        `json:"name"`
+		Channels []interface{} `json:"channels"`
+		SqIP     string        `json:"sq_ip"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})

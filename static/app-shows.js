@@ -1,12 +1,12 @@
 // Show save/load modals, sync all, show manager (export/import)
 async function syncAllToMixer() {
   let errCount = 0;
-  for (const cube of cubes) {
+  for (const channel of channels) {
     try {
       await Promise.all([
-        sendPhantom(cube.preampBus, cube.preampId, cube.phantom),
-        sendPad(cube.preampBus, cube.preampId, cube.pad),
-        sendGain(cube.preampBus, cube.preampId, cube.gain),
+        sendPhantom(channel.preampBus, channel.preampId, channel.phantom),
+        sendPad(channel.preampBus, channel.preampId, channel.pad),
+        sendGain(channel.preampBus, channel.preampId, channel.gain),
       ]);
     } catch (e) {
       errCount++;
@@ -52,7 +52,7 @@ function saveOverwrite(name) {
 async function doSaveShow(name) {
   const payload = {
     name: name.trim(),
-    cubes: cubes.map(c => ({ name: c.name, preampBus: c.preampBus, preampId: c.preampId, phantom: c.phantom, pad: c.pad, gain: c.gain })),
+    channels: channels.map(c => ({ name: c.name, preampBus: c.preampBus, preampId: c.preampId, phantom: c.phantom, pad: c.pad, gain: c.gain })),
     sq_ip: getStoredIP() || undefined,
   };
   const res = await fetch(API_BASE + '/api/shows', {
@@ -114,9 +114,9 @@ async function loadShowFromServer(name) {
     const res = await fetch(API_BASE + '/api/shows/' + encodeURIComponent(name));
     if (!res.ok) throw new Error('Load failed');
     const data = await res.json();
-    const list = Array.isArray(data.cubes) ? data.cubes : [];
+    const list = Array.isArray(data.channels) ? data.channels : (Array.isArray(data.cubes) ? data.cubes : []);
     const startId = nextId();
-    cubes = list.map((c, i) => {
+    channels = list.map((c, i) => {
       const bus = c.preampBus === 'slink' ? 'slink' : 'local';
       const rawId = c.preampId ?? c.channel ?? 1;
       const max = bus === 'slink' ? PREAMP_SLINK_MAX : PREAMP_LOCAL_MAX;
@@ -132,12 +132,12 @@ async function loadShowFromServer(name) {
       };
     });
     if (data.sq_ip) applyShowIP(data.sq_ip);
-    saveCubes();
+    saveChannels();
     render();
     closeLoadShowModal();
     if (getStoredIP()) {
       const { errCount } = await syncAllToMixer();
-      if (cubes.length === 0) toast('Show loaded: 0 channel(s)');
+      if (channels.length === 0) toast('Show loaded: 0 channel(s)');
       else if (errCount === 0) toast('Show loaded and synced to mixer');
       else toast('Show loaded; some channels failed to sync', 'error');
     } else {
@@ -190,7 +190,7 @@ document.getElementById('sync-all').addEventListener('click', async () => {
   const { errCount } = await syncAllToMixer();
   btn.textContent = orig;
   btn.disabled = false;
-  if (errCount === 0 && cubes.length > 0) toast('Sync done');
+  if (errCount === 0 && channels.length > 0) toast('Sync done');
 });
 
 document.getElementById('save-show-server').addEventListener('click', () => openSaveShowModal());
@@ -227,7 +227,7 @@ document.getElementById('show-manager-export').addEventListener('click', () => {
     version: 1,
     name: safe,
     savedAt: new Date().toISOString(),
-    cubes: cubes.map(c => ({ name: c.name, preampBus: c.preampBus, preampId: c.preampId, phantom: c.phantom, pad: c.pad, gain: c.gain })),
+    channels: channels.map(c => ({ name: c.name, preampBus: c.preampBus, preampId: c.preampId, phantom: c.phantom, pad: c.pad, gain: c.gain })),
     sq_ip: getStoredIP() || undefined,
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -255,9 +255,9 @@ document.getElementById('import-show').addEventListener('change', (e) => {
   fr.onload = () => {
     try {
       const data = JSON.parse(fr.result);
-      const list = Array.isArray(data.cubes) ? data.cubes : (Array.isArray(data) ? data : []);
+      const list = Array.isArray(data.channels) ? data.channels : (Array.isArray(data.cubes) ? data.cubes : (Array.isArray(data) ? data : []));
       const startId = nextId();
-      cubes = list.map((c, i) => {
+      channels = list.map((c, i) => {
         const bus = c.preampBus === 'slink' ? 'slink' : 'local';
         const rawId = c.preampId ?? c.channel ?? 1;
         const max = bus === 'slink' ? PREAMP_SLINK_MAX : PREAMP_LOCAL_MAX;
@@ -273,9 +273,9 @@ document.getElementById('import-show').addEventListener('change', (e) => {
         };
       });
       if (data.sq_ip) applyShowIP(data.sq_ip);
-      saveCubes();
+      saveChannels();
       render();
-      toast('Imported: ' + cubes.length + ' channel(s)');
+      toast('Imported: ' + channels.length + ' channel(s)');
     } catch (err) {
       toast('Invalid show file', 'error');
     }
