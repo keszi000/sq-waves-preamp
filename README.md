@@ -2,6 +2,8 @@
 
 Web UI + HTTP API to control Allen & Heath SQ mixer preamps (phantom, pad, gain) over TCP.
 
+**What is this?** The project’s goal: when you use the SQ mixer only as tie-lines (device-to-device patch) for preamps — e.g. for USB recording, or LV1 with Waves I/O, etc. — you can control the preamps directly with this, without touching anything on the mixer.
+
 **Run:**
 
 ```bash
