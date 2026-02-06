@@ -6,7 +6,6 @@ Web UI + HTTP API to control Allen & Heath SQ mixer preamps (phantom, pad, gain)
 
 ```bash
 go run .
-# optional: SQ_IP=10.10.10.170 PORT=8080
 ```
 
 Open the app in the browser. Enter the mixer IP, add channels, assign each to a Local (1–17) or S-Link (1–40) preamp, set phantom/pad/gain. **Sync all** sends current state to the mixer.
@@ -19,6 +18,6 @@ Open the app in the browser. Enter the mixer IP, add channels, assign each to a 
 - `POST /preamp/local/:id/pad?on=true|false`
 - `POST /preamp/local/:id/gain` — body `{"db": 0..60}` or `?db=12`
 
-S-Link `/preamp/slink/:id/...` is placeholder (501) for now.
+**S-Link** (preamp 1–40): same endpoints with `/preamp/slink/:id/phantom`, `pad`, `gain` (ch0 range 16–55).
 
 **Env:** `SQ_IP`, `SQ_PORT` (default 51326), `PORT` (default 8080), `DATA_DIR` (default `./data` for config and shows).
