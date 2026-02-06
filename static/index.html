@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SQ Preamp</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>SQ Preamp</h1>
+    <div class="header-controls">
+      <label class="ip-wrap">
+        <span>SQ IP</span>
+        <input type="text" id="sq-ip" placeholder="192.168.x.x" autocomplete="off">
+      </label>
+      <button type="button" id="sync-all" class="btn-primary">Sync all</button>
+      <button type="button" id="save-show-server" class="btn-secondary">Save show</button>
+      <button type="button" id="load-show-server" class="btn-secondary">Load show</button>
+      <button type="button" id="show-manager-btn" class="btn-manager" title="Export / Import show file">Show manager</button>
+      <input type="file" id="import-show" accept=".json,application/json" hidden>
+      <button type="button" id="edit-toggle" class="btn-primary">Edit</button>
+      <button type="button" id="add-cube" class="edit-only btn-primary">+ New channel</button>
+    </div>
+  </header>
+  <main id="cubes"></main>
+
+  <div id="confirm-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <p class="modal-message" id="confirm-modal-message"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn-tertiary modal-cancel">Cancel</button>
+        <button type="button" class="btn-primary modal-confirm" id="confirm-modal-ok">Continue</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="save-show-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog modal-dialog-list">
+      <h3 class="modal-title">Save show to server</h3>
+      <div id="save-show-list" class="server-show-list"></div>
+      <div class="server-show-new">
+        <label>Save as new:</label>
+        <div class="server-show-new-row">
+          <input type="text" id="save-show-new-name" placeholder="Show name" maxlength="64">
+          <button type="button" id="save-show-new-btn" class="btn-primary">Save</button>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-tertiary" id="save-show-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="load-show-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog modal-dialog-list">
+      <h3 class="modal-title">Load show from server</h3>
+      <div id="load-show-list" class="server-show-list"></div>
+      <p id="load-show-empty" class="server-show-empty" hidden>No saved shows on server.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn-tertiary" id="load-show-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="show-manager-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <h3 class="modal-title">Show manager</h3>
+      <p class="modal-message">Export current show to a file, or import from a JSON file.</p>
+      <div class="show-manager-actions">
+        <button type="button" id="show-manager-export" class="btn-secondary">Export to file</button>
+        <button type="button" id="show-manager-import" class="btn-tertiary">Import from file</button>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-tertiary" id="show-manager-close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
