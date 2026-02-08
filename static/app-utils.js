@@ -1,50 +1,49 @@
-// Shared constants, state, storage, API and helpers
-const STORAGE_KEY = 'sqapi-channels';
-const STORAGE_KEY_IP = 'sqapi-sq-ip';
+// Shared constants, API and helpers — state lives on backend
 const API_BASE = '';
 
-let channels = loadChannels();
+let channels = [];
 let editMode = false;
 
-function loadChannels() {
+async function loadStateFromServer() {
   try {
-    let raw = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('sqapi-cubes');
-    if (!raw) return [];
-    const list = JSON.parse(raw);
-    if (!Array.isArray(list)) return [];
-    const out = [];
-    for (let i = 0; i < list.length; i++) {
-      try {
-        const ch = list[i];
-        if (ch && typeof ch === 'object') {
-          normalizeChannelPreamp(ch);
-          out.push(ch);
-        }
-      } catch (_) {}
+    const data = await api('/api/state');
+    channels = Array.isArray(data.channels) ? data.channels : [];
+    channels.forEach(normalizeChannelPreamp);
+    if (data.sq_ip != null) {
+      const ip = String(data.sq_ip).trim();
+      const el = document.getElementById('sq-ip');
+      if (el) el.value = ip;
+      saveConfig(ip);
     }
-    if (out.length > 0 && !localStorage.getItem(STORAGE_KEY)) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
-    }
-    return out;
-  } catch {
-    return [];
+  } catch (_) {
+    channels = [];
   }
 }
 
-function saveChannels() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(channels));
+function saveStateToServer() {
+  const payload = { channels };
+  return fetch(API_BASE + '/api/state', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).then((res) => {
+    if (!res.ok) return res.json().then((err) => { throw new Error(err.error || res.statusText); });
+    return res.json();
+  });
 }
 
 function getStoredIP() {
-  return (localStorage.getItem(STORAGE_KEY_IP) || '').trim();
+  const el = document.getElementById('sq-ip');
+  return el ? el.value.trim() : '';
 }
 
 function setStoredIP(ip) {
-  localStorage.setItem(STORAGE_KEY_IP, (ip || '').trim());
+  const el = document.getElementById('sq-ip');
+  if (el) el.value = (ip || '').trim();
 }
 
 function nextId() {
-  const ids = channels.map(c => c.id).filter(Boolean);
+  const ids = channels.map((c) => c.id).filter(Boolean);
   return ids.length ? Math.max(...ids) + 1 : 1;
 }
 
@@ -65,7 +64,7 @@ function normalizeChannelPreamp(channel) {
 }
 
 function nextPreamp(bus) {
-  const used = new Set(channels.map(c => `${c.preampBus || 'local'}:${c.preampId ?? c.channel ?? 1}`));
+  const used = new Set(channels.map((c) => `${c.preampBus || 'local'}:${c.preampId ?? c.channel ?? 1}`));
   const max = bus === 'slink' ? PREAMP_SLINK_MAX : PREAMP_LOCAL_MAX;
   for (let id = 1; id <= max; id++) {
     if (!used.has(`${bus}:${id}`)) return id;
@@ -78,7 +77,7 @@ function api(path, options = {}) {
   return fetch(API_BASE + path, {
     ...options,
     headers,
-  }).then(async res => {
+  }).then(async (res) => {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(err.error || res.statusText);

@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,6 +34,86 @@ func handlePostConfig(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"sq_ip": strings.TrimSpace(body.SQIP)})
+}
+
+func handleGetState(c *gin.Context) {
+	sqip, _ := LoadConfig()
+	channels := GetState()
+	c.JSON(http.StatusOK, gin.H{"channels": channels, "sq_ip": sqip})
+}
+
+func handlePostState(c *gin.Context) {
+	var body struct {
+		Channels []ChannelState `json:"channels"`
+		SqIP     string         `json:"sq_ip"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if body.Channels == nil {
+		body.Channels = []ChannelState{}
+	}
+	if err := SetState(body.Channels); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	if body.SqIP != "" {
+		_ = SaveConfig(strings.TrimSpace(body.SqIP))
+	}
+	c.JSON(http.StatusOK, gin.H{"channels": GetState()})
+}
+
+// handlePostSync sends the full backend state to the mixer (only place we push the entire list).
+func handlePostSync(getAddr func(*gin.Context) (string, bool)) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		addr, ok := getAddr(c)
+		if !ok {
+			return
+		}
+		channels := GetState()
+		for _, ch := range channels {
+			bus := ch.PreampBus
+			if bus != "local" && bus != "slink" {
+				bus = "local"
+			}
+			var phantomPkt, padPkt, gainPkt []byte
+			if bus == "slink" {
+				phantomPkt = buildPhantomSLink(ch.PreampId, ch.Phantom)
+				padPkt = buildPadSLink(ch.PreampId, ch.Pad)
+				gainPkt = buildGainSLink(ch.PreampId, ch.Gain)
+			} else {
+				phantomPkt = buildPhantom(ch.PreampId, ch.Phantom)
+				padPkt = buildPad(ch.PreampId, ch.Pad)
+				gainPkt = buildGain(ch.PreampId, ch.Gain)
+			}
+			if err := sendToSQ(addr, phantomPkt); err != nil {
+				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+				return
+			}
+			phantomVal := "off"
+			if ch.Phantom {
+				phantomVal = "on"
+			}
+			LogTXPreamp(bus, ch.PreampId, "phantom", phantomVal)
+			if err := sendToSQ(addr, padPkt); err != nil {
+				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+				return
+			}
+			padVal := "off"
+			if ch.Pad {
+				padVal = "on"
+			}
+			LogTXPreamp(bus, ch.PreampId, "pad", padVal)
+			if err := sendToSQ(addr, gainPkt); err != nil {
+				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
+				return
+			}
+			LogTXPreamp(bus, ch.PreampId, "gain", fmt.Sprintf("%.0f dB", ch.Gain))
+			time.Sleep(40 * time.Millisecond)
+		}
+		c.JSON(http.StatusOK, gin.H{"synced": len(channels)})
+	}
 }
 
 func handleGetShows(c *gin.Context) {
@@ -95,7 +177,8 @@ func makeGetAddr(sqPort string) func(*gin.Context) (string, bool) {
 	}
 }
 
-func runPreampBool(c *gin.Context, getAddr func(*gin.Context) (string, bool), parseID func(*gin.Context, string) (int, bool), buildFn func(int, bool) []byte, key string) {
+// runPreampBool sends a single phantom or pad command to the mixer (one packet), then updates backend state only.
+func runPreampBool(c *gin.Context, getAddr func(*gin.Context) (string, bool), bus string, parseID func(*gin.Context, string) (int, bool), buildFn func(int, bool) []byte, key string) {
 	addr, ok := getAddr(c)
 	if !ok {
 		return
@@ -109,10 +192,21 @@ func runPreampBool(c *gin.Context, getAddr func(*gin.Context) (string, bool), pa
 		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
+	val := "off"
+	if on {
+		val = "on"
+	}
+	LogTXPreamp(bus, preamp, key, val)
+	if key == "phantom" {
+		UpdatePhantom(bus, preamp, on)
+	} else {
+		UpdatePad(bus, preamp, on)
+	}
 	c.JSON(http.StatusOK, gin.H{"preamp": preamp, key: on})
 }
 
-func runPreampGain(c *gin.Context, getAddr func(*gin.Context) (string, bool), parseID func(*gin.Context, string) (int, bool), buildFn func(int, float64) []byte) {
+// runPreampGain sends a single gain command to the mixer (one packet), then updates backend state only.
+func runPreampGain(c *gin.Context, getAddr func(*gin.Context) (string, bool), bus string, parseID func(*gin.Context, string) (int, bool), buildFn func(int, float64) []byte) {
 	addr, ok := getAddr(c)
 	if !ok {
 		return
@@ -129,6 +223,8 @@ func runPreampGain(c *gin.Context, getAddr func(*gin.Context) (string, bool), pa
 		c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
 		return
 	}
+	LogTXPreamp(bus, preamp, "gain", fmt.Sprintf("%.0f dB", db))
+	UpdateGain(bus, preamp, db)
 	c.JSON(http.StatusOK, gin.H{"preamp": preamp, "gain_db": db})
 }
 

@@ -1,20 +1,7 @@
 // Show save/load modals, sync all, show manager (export/import)
 async function syncAllToMixer() {
-  let errCount = 0;
-  for (const channel of channels) {
-    try {
-      await Promise.all([
-        sendPhantom(channel.preampBus, channel.preampId, channel.phantom),
-        sendPad(channel.preampBus, channel.preampId, channel.pad),
-        sendGain(channel.preampBus, channel.preampId, channel.gain),
-      ]);
-    } catch (e) {
-      errCount++;
-      toast(e.message, 'error');
-    }
-    await new Promise(r => setTimeout(r, 40));
-  }
-  return { errCount };
+  const data = await api('/api/sync', { method: 'POST' });
+  return { errCount: 0, synced: data.synced ?? 0 };
 }
 
 let _saveModalEscape = null;
@@ -132,14 +119,18 @@ async function loadShowFromServer(name) {
       };
     });
     if (data.sq_ip) applyShowIP(data.sq_ip);
-    saveChannels();
+    await saveStateToServer().catch(() => {});
     render();
     closeLoadShowModal();
     if (getStoredIP()) {
-      const { errCount } = await syncAllToMixer();
-      if (channels.length === 0) toast('Show loaded: 0 channel(s)');
-      else if (errCount === 0) toast('Show loaded and synced to mixer');
-      else toast('Show loaded; some channels failed to sync', 'error');
+      try {
+        const { errCount } = await syncAllToMixer();
+        if (channels.length === 0) toast('Show loaded: 0 channel(s)');
+        else if (errCount === 0) toast('Show loaded and synced to mixer');
+        else toast('Show loaded; some channels failed to sync', 'error');
+      } catch (syncErr) {
+        toast(syncErr.message || 'Sync failed', 'error');
+      }
     } else {
       toast('Show loaded (enter SQ IP to sync to mixer)');
     }
@@ -175,10 +166,6 @@ function closeShowManagerModal() {
 }
 
 document.getElementById('sync-all').addEventListener('click', async () => {
-  if (!getStoredIP()) {
-    toast('Enter SQ IP first', 'error');
-    return;
-  }
   const ok = await confirmModal(
     'Sync all will send the current channel settings (phantom, pad, gain) to the mixer. This will overwrite the mixer state. Continue?'
   );
@@ -187,10 +174,14 @@ document.getElementById('sync-all').addEventListener('click', async () => {
   const orig = btn.textContent;
   btn.textContent = 'Sending…';
   btn.disabled = true;
-  const { errCount } = await syncAllToMixer();
+  try {
+    const { errCount, synced } = await syncAllToMixer();
+    if (errCount === 0 && (synced > 0 || channels.length === 0)) toast('Sync done');
+  } catch (e) {
+    toast(e.message || 'Sync failed', 'error');
+  }
   btn.textContent = orig;
   btn.disabled = false;
-  if (errCount === 0 && channels.length > 0) toast('Sync done');
 });
 
 document.getElementById('save-show-server').addEventListener('click', () => openSaveShowModal());
@@ -273,7 +264,7 @@ document.getElementById('import-show').addEventListener('change', (e) => {
         };
       });
       if (data.sq_ip) applyShowIP(data.sq_ip);
-      saveChannels();
+      saveStateToServer().catch(() => {});
       render();
       toast('Imported: ' + channels.length + ' channel(s)');
     } catch (err) {

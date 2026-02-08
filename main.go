@@ -22,23 +22,33 @@ func main() {
 		httpPort = "8080"
 	}
 
-	r := gin.Default()
+	if err := LoadState(); err != nil {
+		log.Printf("sqapi: load state: %v", err)
+	}
+
+	r := gin.New()
+	r.Use(gin.Recovery())
 	r.GET("/", func(c *gin.Context) { c.File("./static/index.html") })
 	r.Static("/static", "./static")
 
 	r.GET("/api/config", handleGetConfig)
 	r.POST("/api/config", handlePostConfig)
+	r.GET("/api/state", handleGetState)
+	r.POST("/api/state", handlePostState)
+
+	getAddr := makeGetAddr(sqPort)
+	r.POST("/api/sync", handlePostSync(getAddr))
+
 	r.GET("/api/shows", handleGetShows)
 	r.GET("/api/shows/:name", handleGetShow)
 	r.POST("/api/shows", handlePostShow)
 
-	getAddr := makeGetAddr(sqPort)
-	r.POST("/preamp/local/:id/phantom", func(c *gin.Context) { runPreampBool(c, getAddr, parseLocalPreampID, buildPhantom, "phantom") })
-	r.POST("/preamp/local/:id/pad", func(c *gin.Context) { runPreampBool(c, getAddr, parseLocalPreampID, buildPad, "pad") })
-	r.POST("/preamp/local/:id/gain", func(c *gin.Context) { runPreampGain(c, getAddr, parseLocalPreampID, buildGain) })
-	r.POST("/preamp/slink/:id/phantom", func(c *gin.Context) { runPreampBool(c, getAddr, parseSLinkPreampID, buildPhantomSLink, "phantom") })
-	r.POST("/preamp/slink/:id/pad", func(c *gin.Context) { runPreampBool(c, getAddr, parseSLinkPreampID, buildPadSLink, "pad") })
-	r.POST("/preamp/slink/:id/gain", func(c *gin.Context) { runPreampGain(c, getAddr, parseSLinkPreampID, buildGainSLink) })
+	r.POST("/preamp/local/:id/phantom", func(c *gin.Context) { runPreampBool(c, getAddr, "local", parseLocalPreampID, buildPhantom, "phantom") })
+	r.POST("/preamp/local/:id/pad", func(c *gin.Context) { runPreampBool(c, getAddr, "local", parseLocalPreampID, buildPad, "pad") })
+	r.POST("/preamp/local/:id/gain", func(c *gin.Context) { runPreampGain(c, getAddr, "local", parseLocalPreampID, buildGain) })
+	r.POST("/preamp/slink/:id/phantom", func(c *gin.Context) { runPreampBool(c, getAddr, "slink", parseSLinkPreampID, buildPhantomSLink, "phantom") })
+	r.POST("/preamp/slink/:id/pad", func(c *gin.Context) { runPreampBool(c, getAddr, "slink", parseSLinkPreampID, buildPadSLink, "pad") })
+	r.POST("/preamp/slink/:id/gain", func(c *gin.Context) { runPreampGain(c, getAddr, "slink", parseSLinkPreampID, buildGainSLink) })
 
 	if defaultSQIP != "" {
 		log.Printf("sqapi: SQ=%s (env), HTTP :%s", defaultSQIP+":"+sqPort, httpPort)

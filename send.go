@@ -8,6 +8,15 @@ import (
 	"os"
 )
 
+// LogTXPreamp writes one human-readable line per command sent to the mixer.
+func LogTXPreamp(bus string, preampId int, kind, value string) {
+	busLabel := "local"
+	if bus == "slink" {
+		busLabel = "S-Link"
+	}
+	log.Printf("sqapi: TX %s preamp %d %s %s", busLabel, preampId, kind, value)
+}
+
 func sendToSQ(addr string, payload []byte) error {
 	if os.Getenv("SQ_DEBUG") == "1" {
 		log.Printf("sqapi: TX %s %s", addr, hex.EncodeToString(payload))

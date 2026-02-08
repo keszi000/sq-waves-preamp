@@ -96,12 +96,12 @@ function renderChannel(channel) {
 
   nameInput.addEventListener('input', () => {
     channel.name = nameInput.value.trim() || '';
-    saveChannels();
+    saveStateToServer().catch(() => {});
   });
 
   nameInput.addEventListener('change', () => {
     channel.name = nameInput.value.trim() || '';
-    saveChannels();
+    saveStateToServer().catch(() => {});
   });
 
   busSelect.addEventListener('change', () => {
@@ -110,7 +110,7 @@ function renderChannel(channel) {
     if (channel.preampId > max) channel.preampId = max;
     refreshPreampIdOptions();
     updatePreampView();
-    saveChannels();
+    saveStateToServer().catch(() => {});
   });
 
   chSelect.addEventListener('mousedown', () => {
@@ -125,14 +125,14 @@ function renderChannel(channel) {
   chSelect.addEventListener('change', () => {
     channel.preampId = parseInt(chSelect.value, 10);
     updatePreampView();
-    saveChannels();
+    saveStateToServer().catch(() => {});
   });
 
   phantomToggle.addEventListener('click', () => {
     channel.phantom = !channel.phantom;
     phantomToggle.classList.toggle('on', channel.phantom);
     phantomWrap.querySelector('span').textContent = channel.phantom ? 'On' : 'Off';
-    saveChannels();
+    saveStateToServer().catch(() => {});
     sendPhantom(channel.preampBus, channel.preampId, channel.phantom).catch(e => toast(e.message, 'error'));
   });
 
@@ -141,7 +141,7 @@ function renderChannel(channel) {
     padToggle.classList.toggle('on', channel.pad);
     padWrap.querySelector('span').textContent = channel.pad ? 'On' : 'Off';
     gainValue.textContent = Math.round(displayGain(channel)) + ' dB';
-    saveChannels();
+    saveStateToServer().catch(() => {});
     sendPad(channel.preampBus, channel.preampId, channel.pad).catch(e => toast(e.message, 'error'));
   });
 
@@ -152,7 +152,7 @@ function renderChannel(channel) {
     gainValue.textContent = v + ' dB';
     clearTimeout(gainTimeout);
     gainTimeout = setTimeout(() => {
-      saveChannels();
+      saveStateToServer().catch(() => {});
       sendGain(channel.preampBus, channel.preampId, v).catch(e => toast(e.message, 'error'));
     }, 150);
   }
@@ -169,7 +169,7 @@ function renderChannel(channel) {
 
   removeBtn.addEventListener('click', () => {
     channels = channels.filter(c => c.id !== channel.id);
-    saveChannels();
+    saveStateToServer().catch(() => {});
     div.remove();
   });
 
@@ -193,7 +193,7 @@ function addChannel() {
     pad: false,
     gain: 0,
   });
-  saveChannels();
+  saveStateToServer().catch(() => {});
   const container = document.getElementById('channels');
   container.appendChild(renderChannel(channels[channels.length - 1]));
 }
