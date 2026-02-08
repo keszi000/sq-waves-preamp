@@ -208,9 +208,11 @@ main {
 }
 
 .channel-row label {
-  min-width: 4.5rem;
+  width: 7rem;
+  min-width: 7rem;
   font-size: 0.85rem;
   color: var(--muted);
+  flex-shrink: 0;
 }
 
 .channel select {
