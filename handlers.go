@@ -163,31 +163,17 @@ func runSyncInBackground(addr string, channels []ChannelState) {
 			gainPkt = buildGain(ch.PreampId, ch.Gain)
 		}
 		if err := sendToSQ(addr, phantomPkt); err != nil {
-			syncMu.Lock()
-			syncLastResult = &syncResult{Error: err.Error()}
-			syncMu.Unlock()
+			setSyncResultError(err.Error())
 			return
 		}
-		phantomVal := "off"
-		if ch.Phantom {
-			phantomVal = "on"
-		}
-		LogTXPreamp(bus, ch.PreampId, "phantom", phantomVal)
+		LogTXPreamp(bus, ch.PreampId, "phantom", boolToOnOff(ch.Phantom))
 		if err := sendToSQ(addr, padPkt); err != nil {
-			syncMu.Lock()
-			syncLastResult = &syncResult{Error: err.Error()}
-			syncMu.Unlock()
+			setSyncResultError(err.Error())
 			return
 		}
-		padVal := "off"
-		if ch.Pad {
-			padVal = "on"
-		}
-		LogTXPreamp(bus, ch.PreampId, "pad", padVal)
+		LogTXPreamp(bus, ch.PreampId, "pad", boolToOnOff(ch.Pad))
 		if err := sendToSQ(addr, gainPkt); err != nil {
-			syncMu.Lock()
-			syncLastResult = &syncResult{Error: err.Error()}
-			syncMu.Unlock()
+			setSyncResultError(err.Error())
 			return
 		}
 		LogTXPreamp(bus, ch.PreampId, "gain", fmt.Sprintf("%.0f dB", ch.Gain))
@@ -198,6 +184,19 @@ func runSyncInBackground(addr string, channels []ChannelState) {
 	syncMu.Lock()
 	syncLastResult = &syncResult{Synced: sent}
 	syncMu.Unlock()
+}
+
+func setSyncResultError(msg string) {
+	syncMu.Lock()
+	syncLastResult = &syncResult{Error: msg}
+	syncMu.Unlock()
+}
+
+func boolToOnOff(on bool) string {
+	if on {
+		return "on"
+	}
+	return "off"
 }
 
 func handleGetSyncStatus(c *gin.Context) {

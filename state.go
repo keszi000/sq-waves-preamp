@@ -33,17 +33,10 @@ var (
 
 func statePath() string { return filepath.Join(dataDir, "state.json") }
 
-func ensureStateFile() error {
-	if err := ensureDataDir(); err != nil {
-		return err
-	}
-	return nil
-}
-
 func LoadState() error {
 	stateMu.Lock()
 	defer stateMu.Unlock()
-	if err := ensureStateFile(); err != nil {
+	if err := ensureDataDir(); err != nil {
 		return err
 	}
 	b, err := os.ReadFile(statePath())
@@ -77,7 +70,7 @@ const saveStateRetries = 3
 const saveStateBackoff = 50 * time.Millisecond
 
 func saveStateLocked() error {
-	if err := ensureStateFile(); err != nil {
+	if err := ensureDataDir(); err != nil {
 		return err
 	}
 	file := stateFile{Channels: stateChans, CurrentShow: stateCurrentShow}
@@ -136,16 +129,6 @@ func SetCurrentShow(show string) error {
 	defer stateMu.Unlock()
 	stateCurrentShow = show
 	return saveStateLocked()
-}
-
-func nextStateID() int {
-	max := 0
-	for _, c := range stateChans {
-		if c.ID > max {
-			max = c.ID
-		}
-	}
-	return max + 1
 }
 
 func UpdatePhantom(bus string, preampId int, on bool) {
