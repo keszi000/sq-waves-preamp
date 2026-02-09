@@ -1,3 +1,12 @@
+# macOS / OS junk
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
 /data/
 sqapi
 *.app
