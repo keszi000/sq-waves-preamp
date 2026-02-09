@@ -155,11 +155,15 @@ body:not(.edit-mode) .channel-name {
 main {
   padding: 1.5rem;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, 360px);
   gap: 1rem;
+  justify-content: start;
 }
 
 .channel {
+  width: 360px;
+  min-width: 360px;
+  max-width: 360px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -358,6 +362,29 @@ main {
   min-width: 2.5rem;
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
+  cursor: text;
+  user-select: none;
+}
+
+.gain-value-edit {
+  width: 2.5rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 0.15rem 0.3rem;
+  box-sizing: border-box;
+}
+
+.gain-value-edit:focus {
+  outline: none;
+}
+
+.gain-value-edit::-webkit-outer-spin-button,
+.gain-value-edit::-webkit-inner-spin-button {
+  opacity: 1;
 }
 
 .error-toast,

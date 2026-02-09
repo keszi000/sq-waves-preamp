@@ -144,7 +144,8 @@ func main() {
 	w := webview.New(false)
 	defer w.Destroy()
 	w.SetTitle("SQ Preamp manager")
-	w.SetSize(1100, 720, webview.HintNone)
+	// 3×3 channel boxes: 3*360px + gaps + padding; height for header + 3 full rows
+	w.SetSize(1200, 900, webview.HintNone)
 	w.Bind("exitApp", func() { w.Terminate() })
 	w.Navigate(url)
 	w.Run()

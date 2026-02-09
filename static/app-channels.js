@@ -218,6 +218,46 @@ function renderChannel(channel) {
   gainSlider.addEventListener('input', () => setGainValue(gainSlider.value));
 
   const gainWrap = div.querySelector('.gain-slider-wrap');
+  gainValue.addEventListener('dblclick', () => {
+    if (isLineChannel(channel)) return;
+    if (gainWrap.querySelector('.gain-value-edit')) return;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = 0;
+    input.max = 60;
+    input.step = 1;
+    input.className = 'gain-value-edit';
+    input.value = String(Math.round(channel.gain));
+    input.setAttribute('aria-label', 'Gain dB');
+    gainValue.style.display = 'none';
+    gainWrap.appendChild(input);
+    input.focus();
+    input.select();
+    function commit() {
+      const v = Math.min(60, Math.max(0, parseInt(input.value, 10) || 0));
+      setGainValue(v);
+      input.remove();
+      gainValue.style.display = '';
+      gainValue.textContent = Math.round(displayGain(channel)) + ' dB';
+      input.removeEventListener('blur', onBlur);
+      input.removeEventListener('keydown', onKey);
+    }
+    function cancel() {
+      input.remove();
+      gainValue.style.display = '';
+      gainValue.textContent = Math.round(displayGain(channel)) + ' dB';
+      input.removeEventListener('blur', onBlur);
+      input.removeEventListener('keydown', onKey);
+    }
+    function onBlur() { commit(); }
+    function onKey(e) {
+      if (e.key === 'Enter') { e.preventDefault(); commit(); }
+      else if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    }
+    input.addEventListener('blur', onBlur);
+    input.addEventListener('keydown', onKey);
+  });
+
   gainWrap.addEventListener('wheel', (e) => {
     if (isLineChannel(channel)) return;
     e.preventDefault();
