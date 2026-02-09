@@ -10,14 +10,14 @@ import (
 )
 
 type ChannelState struct {
-	ID         int     `json:"id"`
-	Name       string  `json:"name"`
-	PreampBus  string  `json:"preampBus"`
-	PreampId   int     `json:"preampId"`
-	PreampIdR  int     `json:"preampIdR,omitempty"` // optional right preamp for stereo; 0 = mono
-	Phantom    bool    `json:"phantom"`
-	Pad        bool    `json:"pad"`
-	Gain       float64 `json:"gain"`
+	ID        int     `json:"id"`
+	Name      string  `json:"name"`
+	PreampBus string  `json:"preampBus"`
+	PreampId  int     `json:"preampId"`
+	PreampIdR int     `json:"preampIdR,omitempty"` // optional right preamp for stereo; 0 = mono
+	Phantom   bool    `json:"phantom"`
+	Pad       bool    `json:"pad"`
+	Gain      float64 `json:"gain"`
 }
 
 // stateFile is the persisted format (state.json). Backward compatible: LoadState also accepts legacy array-only JSON.
@@ -27,12 +27,12 @@ type stateFile struct {
 }
 
 var (
-	stateMu         sync.RWMutex
-	stateChans      []ChannelState
+	stateMu          sync.RWMutex
+	stateChans       []ChannelState
 	stateCurrentShow string
 )
 
-func statePath() string { return filepath.Join(dataDir, "state.json") }
+func statePath() string { return filepath.Join(GetDataDir(), "state.json") }
 
 func LoadState() error {
 	stateMu.Lock()

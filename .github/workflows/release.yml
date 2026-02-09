@@ -115,9 +115,9 @@ jobs:
             **SQ Preamp manager** — Web UI to control Allen & Heath SQ mixer preamps (phantom, pad, gain).
 
             - **Windows:** `sqapi-*-windows-amd64.zip` — unzip and run `sqapi.exe` (no console window).
-            - **macOS:** `sqapi-*-darwin-universal.zip` — Apple Silicon and Intel. Unzip, put `config.json` and `data/` next to the .app, then double-click **SQ Preamp manager.app**.
+            - **macOS:** Unzip, put `config.json` and `data/` next to the .app, then double-click **SQ Preamp manager.app**. If macOS says the app is "damaged", run in Terminal: `xattr -cr "SQ Preamp manager.app"` then open again.
 
-            Requires CGO (Go 1.21+). Config and shows are stored in `config.json` and `data/` next to the app.
+            Config and shows are stored in `config.json` and `data/` next to the app.
           files: |
             sqapi-*-windows-amd64.zip
             sqapi-*-darwin-universal.zip

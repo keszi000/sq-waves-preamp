@@ -7,11 +7,15 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 const defaultDataDir = "data"
 
-var dataDir = defaultDataDir
+var (
+	dataDir  = defaultDataDir
+	configMu sync.RWMutex
+)
 
 type config struct {
 	SQIP    string `json:"sq_ip"`
@@ -20,7 +24,7 @@ type config struct {
 
 // configPath returns the fixed config file path (independent of dataDir).
 func configPath() string { return "config.json" }
-func showsDir() string   { return filepath.Join(dataDir, "shows") }
+func showsDir() string   { return filepath.Join(GetDataDir(), "shows") }
 
 func ensureDataDir() error {
 	if err := os.MkdirAll(showsDir(), 0755); err != nil {
@@ -30,6 +34,8 @@ func ensureDataDir() error {
 }
 
 func LoadConfig() (sqip string, dataDirOut string, err error) {
+	configMu.Lock()
+	defer configMu.Unlock()
 	cfgPath := configPath()
 	b, err := os.ReadFile(cfgPath)
 	if err != nil {
@@ -74,6 +80,8 @@ func writeConfigLocked(sqip, dir string) error {
 }
 
 func SaveConfig(sqip, dir string) error {
+	configMu.Lock()
+	defer configMu.Unlock()
 	if dir != "" {
 		dataDir = dir
 	}
@@ -88,7 +96,14 @@ func SaveConfig(sqip, dir string) error {
 	return nil
 }
 
-func GetDataDir() string { return dataDir }
+func GetDataDir() string {
+	configMu.RLock()
+	defer configMu.RUnlock()
+	if dataDir == "" {
+		return defaultDataDir
+	}
+	return dataDir
+}
 
 var safeNameRe = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 

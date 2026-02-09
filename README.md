@@ -22,6 +22,9 @@ Control your **Allen & Heath SQ** mixer’s preamps (phantom power, pad, gain) f
 1. **Download** the release for your system (Windows or macOS) from the [Releases](https://github.com/keszi000/sq-waves-preamp/releases) page and unzip.
 2. **Windows:** Run `sqapi.exe`.  
    **macOS:** Put `config.json` and the `data` folder (if you have them) in the same folder as **SQ Preamp manager.app**, then double‑click the app.  
+   If macOS says the app *"is damaged"*, it’s Gatekeeper blocking an unsigned download. In Terminal, run:  
+   `xattr -cr "SQ Preamp manager.app"`  
+   (from the folder that contains the app). Then open the app again.  
    If you see *"application is not supported on this Mac"*, you’re likely on an **Intel Mac** and the release build may be Apple Silicon only. Build the app on your Mac from source: clone the repo, install [Go](https://go.dev/dl/) and Xcode Command Line Tools, then run `./build/build-mac.sh` in the repo — the resulting .app will run on your Mac.
 3. Open **Config**, enter your SQ mixer’s **IP address**, and save.
 4. Add channels (Edit → + New channel), set bus and preamp per channel, then use Phantom / Pad / Gain. Save your layout as a **show** and use **Sync all** to send it to the mixer.

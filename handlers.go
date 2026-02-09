@@ -16,11 +16,11 @@ import (
 
 // syncStatus holds progress and result of the background sync.
 var (
-	syncMu       sync.Mutex
-	syncStatus   string          // "idle" | "running"
-	syncCurrent  int             // 0-based index of current channel
-	syncTotal    int             // total channels
-	syncLastResult *syncResult   // set when status becomes "idle"
+	syncMu         sync.Mutex
+	syncStatus     string      // "idle" | "running"
+	syncCurrent    int         // 0-based index of current channel
+	syncTotal      int         // total channels
+	syncLastResult *syncResult // set when status becomes "idle"
 )
 
 type syncResult struct {
@@ -78,13 +78,18 @@ func handlePostState(c *gin.Context) {
 	if body.Channels == nil {
 		body.Channels = []ChannelState{}
 	}
+	channels, err := normalizeAndValidateChannels(body.Channels)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	if body.CurrentShow != nil {
 		if err := SetCurrentShow(*body.CurrentShow); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 	}
-	if err := SetState(body.Channels); err != nil {
+	if err := SetState(channels); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -168,7 +173,6 @@ func runSyncInBackground(addr string, channels []ChannelState) {
 			syncCurrent = sent
 			syncMu.Unlock()
 
-
 			var phantomPkt, padPkt, gainPkt []byte
 			if bus == "slink" {
 				phantomPkt = buildPhantomSLink(id, ch.Phantom)
@@ -251,10 +255,10 @@ func handleGetShow(c *gin.Context) {
 
 func handlePostShow(c *gin.Context) {
 	var body struct {
-		Name      string        `json:"name"`
-		Channels  []interface{} `json:"channels"`
-		SqIP      string        `json:"sq_ip"`
-		SetCurrent *bool        `json:"set_current"` // if false, do not set as current show (e.g. import from file)
+		Name       string        `json:"name"`
+		Channels   []interface{} `json:"channels"`
+		SqIP       string        `json:"sq_ip"`
+		SetCurrent *bool         `json:"set_current"` // if false, do not set as current show (e.g. import from file)
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -424,4 +428,37 @@ func parseGainDB(c *gin.Context) (float64, bool) {
 		return 0, false
 	}
 	return body.DB, true
+}
+
+func normalizeAndValidateChannels(in []ChannelState) ([]ChannelState, error) {
+	if len(in) == 0 {
+		return in, nil
+	}
+	out := make([]ChannelState, len(in))
+	copy(out, in)
+	for i := range out {
+		c := &out[i]
+		if c.PreampBus == "" {
+			c.PreampBus = "local"
+		}
+		switch c.PreampBus {
+		case "local":
+			if c.PreampId < 1 || c.PreampId > 21 {
+				return nil, fmt.Errorf("channel %d: local preampId must be 1-21", c.ID)
+			}
+			if c.PreampIdR != 0 && (c.PreampIdR < 1 || c.PreampIdR > 21) {
+				return nil, fmt.Errorf("channel %d: local preampIdR must be 1-21", c.ID)
+			}
+		case "slink":
+			if c.PreampId < 1 || c.PreampId > 40 {
+				return nil, fmt.Errorf("channel %d: slink preampId must be 1-40", c.ID)
+			}
+			if c.PreampIdR != 0 && (c.PreampIdR < 1 || c.PreampIdR > 40) {
+				return nil, fmt.Errorf("channel %d: slink preampIdR must be 1-40", c.ID)
+			}
+		default:
+			return nil, fmt.Errorf("channel %d: invalid preampBus %q (expected local or slink)", c.ID, c.PreampBus)
+		}
+	}
+	return out, nil
 }
