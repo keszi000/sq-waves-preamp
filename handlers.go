@@ -300,6 +300,11 @@ func handleDeleteShow(c *gin.Context) {
 // Local preamp 18–21 are stereo line inputs (ST1 L, ST1 R, ST2 L, ST2 R): no phantom/pad/gain, never send to SQ.
 var localLinePreampIDs = []int{18, 19, 20, 21}
 
+// sameLocalFamily: both 1–17 (input) or both 18–21 (line). Stereo L+R must not mix input with line.
+func sameLocalFamily(idL, idR int) bool {
+	return isLocalLinePreamp(idL) == isLocalLinePreamp(idR)
+}
+
 func isLocalLinePreamp(preampId int) bool {
 	for _, id := range localLinePreampIDs {
 		if id == preampId {
@@ -448,6 +453,10 @@ func normalizeAndValidateChannels(in []ChannelState) ([]ChannelState, error) {
 			}
 			if c.PreampIdR != 0 && (c.PreampIdR < 1 || c.PreampIdR > 21) {
 				return nil, fmt.Errorf("channel %d: local preampIdR must be 1-21", c.ID)
+			}
+			// Stereo: L and R must be same family (both input 1–17 or both line 18–21). Normalize invalid pair.
+			if c.PreampIdR != 0 && !sameLocalFamily(c.PreampId, c.PreampIdR) {
+				c.PreampIdR = 0
 			}
 		case "slink":
 			if c.PreampId < 1 || c.PreampId > 40 {

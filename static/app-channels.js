@@ -35,7 +35,11 @@ function renderChannel(channel) {
   ).join('');
   function stereoOptionsHtml() {
     const used = usedPreampSlots();
-    const available = (i) => i !== channel.preampId && (i === channel.preampIdR || !used.has(`${channel.preampBus}:${i}`));
+    const sameFamily = (i) => {
+      if (bus !== 'local') return true;
+      return isSameLocalFamily(channel.preampId, i);
+    };
+    const available = (i) => i !== channel.preampId && sameFamily(i) && (i === channel.preampIdR || !used.has(`${channel.preampBus}:${i}`));
     const opts = Array.from({ length: idMax }, (_, i) => i + 1).filter(available)
       .map((i) => `<option value="${i}" ${(channel.preampIdR || 0) === i ? 'selected' : ''}>${preampOptionLabel(bus, i)}</option>`)
       .join('');
@@ -139,6 +143,7 @@ function renderChannel(channel) {
     const max = channel.preampBus === 'slink' ? PREAMP_SLINK_MAX : PREAMP_LOCAL_MAX;
     if (channel.preampId > max) channel.preampId = max;
     if (channel.preampIdR > max) channel.preampIdR = 0;
+    if (channel.preampBus === 'local' && channel.preampIdR && !isSameLocalFamily(channel.preampId, channel.preampIdR)) channel.preampIdR = 0;
     refreshPreampIdOptions();
     updatePreampView();
     updateLineState();
@@ -157,6 +162,7 @@ function renderChannel(channel) {
   chSelect.addEventListener('change', () => {
     channel.preampId = parseInt(chSelect.value, 10);
     if (channel.preampIdR === channel.preampId) channel.preampIdR = 0;
+    if (channel.preampBus === 'local' && channel.preampIdR && !isSameLocalFamily(channel.preampId, channel.preampIdR)) channel.preampIdR = 0;
     refreshPreampIdOptions();
     updatePreampView();
     updateLineState();

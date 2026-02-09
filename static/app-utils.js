@@ -73,13 +73,22 @@ function normalizeChannelPreamp(channel) {
     channel.preampId = Math.max(1, Math.min(PREAMP_LOCAL_MAX, channel.preampId));
   if (channel.preampBus === 'slink' && (channel.preampId < 1 || channel.preampId > PREAMP_SLINK_MAX))
     channel.preampId = Math.max(1, Math.min(PREAMP_SLINK_MAX, channel.preampId));
-  // Stereo: optional right preamp (0 = mono)
+  // Stereo: optional right preamp (0 = mono). Local: L and R must be same family (1–17 or 18–21).
   const r = channel.preampIdR != null ? parseInt(channel.preampIdR, 10) : 0;
   channel.preampIdR = (r >= 1 && r !== channel.preampId) ? r : 0;
   if (channel.preampBus === 'local' && (channel.preampIdR < 1 || channel.preampIdR > PREAMP_LOCAL_MAX))
     channel.preampIdR = 0;
+  if (channel.preampBus === 'local' && channel.preampIdR !== 0 && !isSameLocalFamily(channel.preampId, channel.preampIdR))
+    channel.preampIdR = 0;
   if (channel.preampBus === 'slink' && (channel.preampIdR < 1 || channel.preampIdR > PREAMP_SLINK_MAX))
     channel.preampIdR = 0;
+}
+
+/** Local L and R must be same family: both 1–17 (input) or both 18–21 (line). */
+function isSameLocalFamily(idL, idR) {
+  const Lline = linePreampIds.includes(idL);
+  const Rline = linePreampIds.includes(idR);
+  return Lline === Rline;
 }
 
 function usedPreampSlots() {
