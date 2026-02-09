@@ -188,9 +188,9 @@ async function refreshManagerList() {
       const item = document.createElement('div');
       item.className = 'server-show-item' + (name === currentShow ? ' is-current' : '');
       const isCurrent = name === currentShow;
-      item.innerHTML = `<span class="server-show-name">${escapeHtml(name)}</span>${isCurrent ? '<span class="show-item-current">current</span>' : ''}<button type="button" class="btn-export" data-name="${escapeAttr(name)}" title="Export to file">Export</button>${isCurrent ? '' : `<button type="button" class="btn-delete" data-name="${escapeAttr(name)}" title="Delete show">Delete</button>`}`;
+      item.innerHTML = `<span class="server-show-name">${escapeHtml(name)}</span>${isCurrent ? '<span class="show-item-current">current</span>' : ''}<button type="button" class="btn-export" data-name="${escapeAttr(name)}" title="Export to file">Export</button><button type="button" class="btn-delete" data-name="${escapeAttr(name)}" title="Delete show">Delete</button>`;
       item.querySelector('.btn-export').addEventListener('click', () => exportShowToFile(name));
-      if (!isCurrent) item.querySelector('.btn-delete').addEventListener('click', () => deleteShowInManager(name));
+      item.querySelector('.btn-delete').addEventListener('click', () => deleteShowInManager(name));
       listEl.appendChild(item);
     });
   } catch (e) {
@@ -219,16 +219,14 @@ async function exportShowToFile(name) {
 async function deleteShowInManager(name) {
   closeShowManagerModal();
   const state = await api('/api/state').catch(() => ({}));
-  if ((state.current_show || null) === name) {
-    toast('Cannot delete current show', 'error');
-    return;
-  }
-  const ok = await confirmModal(`Delete show "${escapeHtml(name)}"?`, 'Delete');
+  const isCurrent = (state.current_show || null) === name;
+  const ok = await confirmModal(`Delete show "${escapeHtml(name)}"?${isCurrent ? ' This is the current show; it will be unset.' : ''}`, 'Delete');
   if (!ok) return;
   try {
     const res = await fetch(API_BASE + '/api/shows/' + encodeURIComponent(name), { method: 'DELETE' });
     if (!res.ok) throw new Error(res.status === 404 ? 'Show not found' : 'Delete failed');
     toast('Show deleted');
+    await loadStateFromServer();
   } catch (e) {
     toast(e.message || 'Delete failed', 'error');
   }
@@ -316,7 +314,7 @@ document.getElementById('import-to-server').addEventListener('change', (e) => {
       let name = (data.name || '').trim().replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64);
       if (!name) name = prompt('Show name (for server list):', 'show') || 'show';
       name = name.trim().replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64) || 'show';
-      const payload = { name, channels: list, sq_ip: data.sq_ip || undefined };
+      const payload = { name, channels: list, sq_ip: data.sq_ip || undefined, set_current: false };
       const res = await fetch(API_BASE + '/api/shows', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

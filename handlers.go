@@ -233,9 +233,10 @@ func handleGetShow(c *gin.Context) {
 
 func handlePostShow(c *gin.Context) {
 	var body struct {
-		Name     string        `json:"name"`
-		Channels []interface{} `json:"channels"`
-		SqIP     string        `json:"sq_ip"`
+		Name      string        `json:"name"`
+		Channels  []interface{} `json:"channels"`
+		SqIP      string        `json:"sq_ip"`
+		SetCurrent *bool        `json:"set_current"` // if false, do not set as current show (e.g. import from file)
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -252,7 +253,9 @@ func handlePostShow(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	_ = SetCurrentShow(name)
+	if body.SetCurrent == nil || *body.SetCurrent {
+		_ = SetCurrentShow(name)
+	}
 	c.JSON(http.StatusOK, gin.H{"name": name})
 }
 
@@ -265,6 +268,9 @@ func handleDeleteShow(c *gin.Context) {
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
+	}
+	if GetCurrentShow() == name {
+		_ = SetCurrentShow("")
 	}
 	c.Status(http.StatusNoContent)
 }
