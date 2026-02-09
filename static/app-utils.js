@@ -91,23 +91,27 @@ function isSameLocalFamily(idL, idR) {
   return Lline === Rline;
 }
 
-function usedPreampSlots() {
+/** Used preamp slots (bus:id). L/R dropdown allows a slot if it's this channel's current L or R, or not in this set. */
+function usedPreampSlots(excludeChannelId) {
   const used = new Set();
   channels.forEach((c) => {
+    if (excludeChannelId != null && c.id === excludeChannelId) return;
     const bus = c.preampBus || 'local';
-    used.add(`${bus}:${c.preampId ?? c.channel ?? 1}`);
-    if (c.preampIdR) used.add(`${bus}:${c.preampIdR}`);
+    const lid = c.preampId ?? c.channel ?? 1;
+    if (lid >= 1) used.add(`${bus}:${lid}`);
+    if (c.preampIdR && c.preampIdR >= 1) used.add(`${bus}:${c.preampIdR}`);
   });
   return used;
 }
 
+/** First free preamp id for bus (1–21 local, 1–40 slink), or 0 if none free. */
 function nextPreamp(bus) {
   const used = usedPreampSlots();
   const max = bus === 'slink' ? PREAMP_SLINK_MAX : PREAMP_LOCAL_MAX;
   for (let id = 1; id <= max; id++) {
     if (!used.has(`${bus}:${id}`)) return id;
   }
-  return 1;
+  return 0;
 }
 
 function api(path, options = {}) {

@@ -34,14 +34,16 @@ function renderChannel(channel) {
     `<option value="${i}" ${id === i ? 'selected' : ''}>${preampOptionLabel(bus, i)}</option>`
   ).join('');
   function stereoOptionsHtml() {
-    const used = usedPreampSlots();
+    const currentBus = channel.preampBus;
+    const currentIdMax = currentBus === 'slink' ? PREAMP_SLINK_MAX : PREAMP_LOCAL_MAX;
+    const used = usedPreampSlots(channel.id);
     const sameFamily = (i) => {
-      if (bus !== 'local') return true;
+      if (currentBus !== 'local') return true;
       return isSameLocalFamily(channel.preampId, i);
     };
-    const available = (i) => i !== channel.preampId && sameFamily(i) && (i === channel.preampIdR || !used.has(`${channel.preampBus}:${i}`));
-    const opts = Array.from({ length: idMax }, (_, i) => i + 1).filter(available)
-      .map((i) => `<option value="${i}" ${(channel.preampIdR || 0) === i ? 'selected' : ''}>${preampOptionLabel(bus, i)}</option>`)
+    const available = (i) => i !== channel.preampId && sameFamily(i) && (i === channel.preampIdR || !used.has(`${currentBus}:${i}`));
+    const opts = Array.from({ length: currentIdMax }, (_, i) => i + 1).filter(available)
+      .map((i) => `<option value="${i}" ${(channel.preampIdR || 0) === i ? 'selected' : ''}>${preampOptionLabel(currentBus, i)}</option>`)
       .join('');
     return '<option value="0">— mono</option>' + opts;
   }
@@ -112,10 +114,11 @@ function renderChannel(channel) {
     gainSlider.disabled = line;
   }
 
+
   function refreshPreampIdOptions() {
-    const used = usedPreampSlots();
     const bus = channel.preampBus;
     const max = bus === 'slink' ? PREAMP_SLINK_MAX : PREAMP_LOCAL_MAX;
+    const used = usedPreampSlots(channel.id);
     const available = (i) => i === channel.preampId || i === channel.preampIdR || !used.has(`${bus}:${i}`);
     const opts = Array.from({ length: max }, (_, i) => i + 1)
       .filter(available)
@@ -144,6 +147,20 @@ function renderChannel(channel) {
     if (channel.preampId > max) channel.preampId = max;
     if (channel.preampIdR > max) channel.preampIdR = 0;
     if (channel.preampBus === 'local' && channel.preampIdR && !isSameLocalFamily(channel.preampId, channel.preampIdR)) channel.preampIdR = 0;
+    // After switching to Local, if current L (or R) is already used by another channel, pick first free local slot
+    if (channel.preampBus === 'local') {
+      const used = usedPreampSlots(channel.id);
+      const taken = (id) => id >= 1 && used.has('local:' + id);
+      if (taken(channel.preampId) || (channel.preampIdR && taken(channel.preampIdR))) {
+        const free = nextPreamp('local');
+        if (free) {
+          channel.preampId = free;
+          channel.preampIdR = 0;
+        } else {
+          toast('All local slots in use. Remove a channel or switch one to S-Link.', 'error');
+        }
+      }
+    }
     refreshPreampIdOptions();
     updatePreampView();
     updateLineState();
@@ -282,11 +299,21 @@ function render() {
 }
 
 function addChannel() {
+  let bus = 'local';
+  let id = nextPreamp('local');
+  if (id === 0) {
+    bus = 'slink';
+    id = nextPreamp('slink');
+    if (id === 0) {
+      toast('No free preamp slot (local and S-Link full). Remove a channel first.', 'error');
+      return;
+    }
+  }
   channels.push({
     id: nextId(),
     name: '',
-    preampBus: 'local',
-    preampId: nextPreamp('local'),
+    preampBus: bus,
+    preampId: id,
     preampIdR: 0,
     phantom: false,
     pad: false,
