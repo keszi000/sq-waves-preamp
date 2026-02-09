@@ -1,0 +1,8 @@
+{
+  "name": "SQ Preamp manager",
+  "short_name": "SQ Preamp",
+  "display": "standalone",
+  "theme_color": "#1a1a1e",
+  "background_color": "#1a1a1e",
+  "start_url": "/"
+}

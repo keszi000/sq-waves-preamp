@@ -10,7 +10,7 @@ Web UI + HTTP API to control Allen & Heath SQ mixer preamps (phantom, pad, gain)
 go run .
 ```
 
-Open the app in the browser. Enter the mixer IP, add channels, assign each to a Local (1–17) or S-Link (1–40) preamp, set phantom/pad/gain. **Sync all** sends current state to the mixer.
+The app opens in an **embedded window** (native WebView, no browser). Enter the mixer IP, add channels, assign each to a Local (1–17) or S-Link (1–40) preamp, set phantom/pad/gain. **Sync all** sends current state to the mixer. Build requires **CGO** (on macOS: Xcode Command Line Tools).
 
 **Saving:** Save/Load show to server (list + overwrite or new). Show manager: export/import JSON file. SQ IP is stored in the show.
 

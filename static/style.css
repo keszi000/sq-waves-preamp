@@ -126,6 +126,13 @@ h1 {
   background: var(--card);
 }
 
+.header-controls button.btn-icon {
+  min-width: 2rem;
+  padding: 0.35rem;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
 /* Edit mode: show add channel, remove buttons, channel select */
 .edit-only {
   display: none !important;

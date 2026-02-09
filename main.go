@@ -2,14 +2,17 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"io/fs"
 	"log"
 	"net/http"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/webview/webview_go"
 )
 
 //go:embed static
@@ -115,6 +118,28 @@ func main() {
 	r.POST("/preamp/slink/:id/pad", func(c *gin.Context) { runPreampBool(c, getAddr, "slink", parseSLinkPreampID, buildPadSLink, "pad") })
 	r.POST("/preamp/slink/:id/gain", func(c *gin.Context) { runPreampGain(c, getAddr, "slink", parseSLinkPreampID, buildGainSLink) })
 
-	log.Printf("sqapi: %s%s", "http://localhost:", httpPort)
-	log.Fatal(r.Run(":" + httpPort))
+	url := "http://localhost:" + httpPort
+	log.Printf("sqapi: %s", url)
+
+	srv := &http.Server{Addr: ":" + httpPort, Handler: r}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("sqapi: server: %v", err)
+		}
+	}()
+	time.Sleep(400 * time.Millisecond)
+
+	w := webview.New(false)
+	defer w.Destroy()
+	w.SetTitle("SQ Preamp manager")
+	w.SetSize(1100, 720, webview.HintNone)
+	w.Bind("exitApp", func() { w.Terminate() })
+	w.Navigate(url)
+	w.Run()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("sqapi: shutdown: %v", err)
+	}
 }

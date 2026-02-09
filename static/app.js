@@ -43,5 +43,11 @@ document.getElementById('config-reset-state').addEventListener('click', async ()
   }
 });
 
+document.getElementById('exit-btn').addEventListener('click', async () => {
+  if (typeof exitApp !== 'function') return;
+  const ok = await confirmModal('Close the app?', 'Close');
+  if (ok) exitApp();
+});
+
 // Init: load state and config from backend, then render
 loadStateFromServer().then(() => render());

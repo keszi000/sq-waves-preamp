@@ -2,8 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1a1e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>SQ Preamp manager</title>
+  <link rel="manifest" href="/static/manifest.json">
   <link rel="stylesheet" href="/static/style.css?v=2">
 </head>
 <body>
@@ -17,6 +21,7 @@
       <button type="button" id="show-manager-btn" class="btn-manager" title="Export / Import show file">Show manager</button>
       <button type="button" id="edit-toggle" class="btn-primary">Edit</button>
       <button type="button" id="add-channel" class="edit-only btn-primary">+ New channel</button>
+      <button type="button" id="exit-btn" class="btn-icon btn-secondary" title="Close app">×</button>
     </div>
   </header>
   <main id="channels"></main>
