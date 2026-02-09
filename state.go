@@ -116,6 +116,15 @@ func SetState(channels []ChannelState) error {
 	return saveStateLocked()
 }
 
+// ResetState clears state.json: empty channel list and current show. Used by config "Reset state".
+func ResetState() error {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	stateChans = []ChannelState{}
+	stateCurrentShow = ""
+	return saveStateLocked()
+}
+
 func GetCurrentShow() string {
 	stateMu.RLock()
 	defer stateMu.RUnlock()

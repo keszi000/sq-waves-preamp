@@ -28,5 +28,20 @@ document.getElementById('config-save').addEventListener('click', async () => {
   }
 });
 
+document.getElementById('config-reset-state').addEventListener('click', async () => {
+  const msg = '<p><strong>Reset state?</strong></p><p>This will:</p><ul><li>Clear <code>state.json</code></li><li>Remove all channels and layout</li><li>Empty the channel list</li></ul><p>This cannot be undone.</p>';
+  const ok = await confirmModalHtml(msg, 'Reset state', true);
+  if (!ok) return;
+  try {
+    await fetch(API_BASE + '/api/state/reset', { method: 'POST' });
+    await loadStateFromServer();
+    render();
+    closeConfigModal();
+    toast('State reset');
+  } catch (e) {
+    toast(e.message || 'Reset failed', 'error');
+  }
+});
+
 // Init: load state and config from backend, then render
 loadStateFromServer().then(() => render());

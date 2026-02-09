@@ -95,6 +95,7 @@ func main() {
 	r.POST("/api/config", handlePostConfig)
 	r.GET("/api/state", handleGetState)
 	r.POST("/api/state", handlePostState)
+	r.POST("/api/state/reset", handleResetState)
 
 	getAddr := makeGetAddr(sqPort)
 	r.POST("/api/sync", handlePostSync(getAddr))

@@ -444,6 +444,17 @@ main {
   background: var(--border);
 }
 
+.modal-actions .btn-danger {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+.modal-actions .btn-danger:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
 .modal-title {
   margin: 0 0 1rem;
   font-size: 1.1rem;

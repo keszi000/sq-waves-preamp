@@ -94,6 +94,14 @@ func handlePostState(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"channels": GetState(), "current_show": GetCurrentShow(), "line_preamp_ids": localLinePreampIDs})
 }
 
+func handleResetState(c *gin.Context) {
+	if err := ResetState(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"channels": []ChannelState{}, "current_show": ""})
+}
+
 // handlePostSync starts syncing the full backend state to the mixer in the background; returns 202 immediately.
 func handlePostSync(getAddr func(*gin.Context) (string, bool)) gin.HandlerFunc {
 	return func(c *gin.Context) {
