@@ -83,21 +83,26 @@ func handlePostState(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if body.CurrentShow != nil {
-		if err := SetCurrentShow(*body.CurrentShow); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-	}
-	if err := SetState(channels); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
+
+	var oldSQIP, oldDataDir string
+	var haveOldConfig bool
 	if body.SqIP != "" {
+		var err error
+		oldSQIP, oldDataDir, err = LoadConfig()
+		if err == nil {
+			haveOldConfig = true
+		}
 		if err := SaveConfig(strings.TrimSpace(body.SqIP), ""); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
+	}
+	if err := SetStateAndCurrentShow(channels, body.CurrentShow); err != nil {
+		if body.SqIP != "" && haveOldConfig {
+			_ = SaveConfig(oldSQIP, oldDataDir)
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
 	}
 	c.JSON(http.StatusOK, gin.H{"channels": GetState(), "current_show": GetCurrentShow(), "line_preamp_ids": localLinePreampIDs})
 }

@@ -110,6 +110,18 @@ func SetState(channels []ChannelState) error {
 	return saveStateLocked()
 }
 
+// SetStateAndCurrentShow saves channels and (optionally) current show in one write.
+// If show is nil, keeps existing current show.
+func SetStateAndCurrentShow(channels []ChannelState, show *string) error {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	stateChans = channels
+	if show != nil {
+		stateCurrentShow = *show
+	}
+	return saveStateLocked()
+}
+
 // ResetState clears state.json: empty channel list and current show. Used by config "Reset state".
 func ResetState() error {
 	stateMu.Lock()
