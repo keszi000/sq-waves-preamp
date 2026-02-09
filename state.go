@@ -2,9 +2,11 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 type ChannelState struct {
@@ -17,9 +19,16 @@ type ChannelState struct {
 	Gain      float64 `json:"gain"`
 }
 
+// stateFile is the persisted format (state.json). Backward compatible: LoadState also accepts legacy array-only JSON.
+type stateFile struct {
+	Channels    []ChannelState `json:"channels"`
+	CurrentShow string         `json:"current_show"`
+}
+
 var (
-	stateMu    sync.RWMutex
-	stateChans []ChannelState
+	stateMu         sync.RWMutex
+	stateChans      []ChannelState
+	stateCurrentShow string
 )
 
 func statePath() string { return filepath.Join(dataDir, "state.json") }
@@ -41,27 +50,52 @@ func LoadState() error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			stateChans = nil
+			stateCurrentShow = ""
 			return nil
 		}
 		return err
 	}
-	var list []ChannelState
-	if err := json.Unmarshal(b, &list); err != nil {
-		return err
+	var file stateFile
+	if err := json.Unmarshal(b, &file); err != nil {
+		var list []ChannelState
+		if err2 := json.Unmarshal(b, &list); err2 != nil {
+			return err
+		}
+		stateChans = list
+		stateCurrentShow = ""
+		return nil
 	}
-	stateChans = list
+	stateChans = file.Channels
+	if stateChans == nil {
+		stateChans = []ChannelState{}
+	}
+	stateCurrentShow = file.CurrentShow
 	return nil
 }
+
+const saveStateRetries = 3
+const saveStateBackoff = 50 * time.Millisecond
 
 func saveStateLocked() error {
 	if err := ensureStateFile(); err != nil {
 		return err
 	}
-	b, err := json.MarshalIndent(stateChans, "", "  ")
+	file := stateFile{Channels: stateChans, CurrentShow: stateCurrentShow}
+	b, err := json.MarshalIndent(file, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(statePath(), b, 0644)
+	path := statePath()
+	for attempt := 0; attempt < saveStateRetries; attempt++ {
+		if err := os.WriteFile(path, b, 0644); err == nil {
+			return nil
+		} else if attempt == saveStateRetries-1 {
+			log.Printf("sqapi: save state failed after %d attempts: %v", saveStateRetries, err)
+			return err
+		}
+		time.Sleep(saveStateBackoff)
+	}
+	return nil
 }
 
 func GetState() []ChannelState {
@@ -79,6 +113,19 @@ func SetState(channels []ChannelState) error {
 	stateMu.Lock()
 	defer stateMu.Unlock()
 	stateChans = channels
+	return saveStateLocked()
+}
+
+func GetCurrentShow() string {
+	stateMu.RLock()
+	defer stateMu.RUnlock()
+	return stateCurrentShow
+}
+
+func SetCurrentShow(show string) error {
+	stateMu.Lock()
+	defer stateMu.Unlock()
+	stateCurrentShow = show
 	return saveStateLocked()
 }
 

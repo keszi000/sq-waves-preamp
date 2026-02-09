@@ -22,4 +22,4 @@ Open the app in the browser. Enter the mixer IP, add channels, assign each to a 
 
 **S-Link** (preamp 1–40): same endpoints with `/preamp/slink/:id/phantom`, `pad`, `gain` (ch0 range 16–55).
 
-**Env:** `SQ_IP`, `SQ_PORT` (default 51326), `PORT` (default 8080), `DATA_DIR` (default `./data` for config and shows).
+Config and shows are stored in `./data` (config.json, state.json, shows/). HTTP server listens on port 8080.

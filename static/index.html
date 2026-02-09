@@ -10,10 +10,7 @@
   <header>
     <h1>SQ Preamp</h1>
     <div class="header-controls">
-      <label class="ip-wrap">
-        <span>SQ IP</span>
-        <input type="text" id="sq-ip" placeholder="192.168.x.x" autocomplete="off">
-      </label>
+      <button type="button" id="config-btn" class="btn-secondary" title="Config">Config</button>
       <button type="button" id="sync-all" class="btn-primary">Sync all</button>
       <button type="button" id="save-show-server" class="btn-secondary">Save show</button>
       <button type="button" id="load-show-server" class="btn-secondary">Load show</button>
@@ -24,6 +21,23 @@
     </div>
   </header>
   <main id="channels"></main>
+
+  <div id="config-modal" class="modal" hidden>
+    <div class="modal-overlay"></div>
+    <div class="modal-dialog">
+      <h3 class="modal-title">Config</h3>
+      <div class="config-form">
+        <label for="config-sq-ip">SQ IP</label>
+        <input type="text" id="config-sq-ip" placeholder="192.168.x.x" autocomplete="off">
+        <label for="config-data-dir">Data dir</label>
+        <input type="text" id="config-data-dir" placeholder="data" autocomplete="off">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-tertiary" id="config-close">Close</button>
+        <button type="button" class="btn-primary" id="config-save">Save</button>
+      </div>
+    </div>
+  </div>
 
   <div id="confirm-modal" class="modal" hidden>
     <div class="modal-overlay"></div>
@@ -68,12 +82,14 @@
 
   <div id="show-manager-modal" class="modal" hidden>
     <div class="modal-overlay"></div>
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-list">
       <h3 class="modal-title">Show manager</h3>
-      <p class="modal-message">Export current show to a file, or import from a JSON file.</p>
-      <div class="show-manager-actions">
-        <button type="button" id="show-manager-export" class="btn-secondary">Export to file</button>
-        <button type="button" id="show-manager-import" class="btn-tertiary">Import from file</button>
+      <div id="show-manager-list" class="server-show-list"></div>
+      <p id="show-manager-empty" class="server-show-empty" hidden>No shows on server.</p>
+      <div class="show-manager-import">
+        <label>Import show from file (adds to server list):</label>
+        <button type="button" id="show-manager-import-btn" class="btn-secondary">Import</button>
+        <input type="file" id="import-to-server" accept=".json,application/json" hidden>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn-tertiary" id="show-manager-close">Close</button>

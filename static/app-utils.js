@@ -4,24 +4,27 @@ const API_BASE = '';
 let channels = [];
 let editMode = false;
 
+/** Last known config from backend (sq_ip, data_dir). */
+let lastConfig = { sq_ip: '', data_dir: 'data' };
+
 async function loadStateFromServer() {
   try {
-    const data = await api('/api/state');
-    channels = Array.isArray(data.channels) ? data.channels : [];
+    const [stateData, configData] = await Promise.all([
+      api('/api/state'),
+      api('/api/config').catch(() => ({ sq_ip: '', data_dir: 'data' })),
+    ]);
+    channels = Array.isArray(stateData.channels) ? stateData.channels : [];
     channels.forEach(normalizeChannelPreamp);
-    if (data.sq_ip != null) {
-      const ip = String(data.sq_ip).trim();
-      const el = document.getElementById('sq-ip');
-      if (el) el.value = ip;
-      saveConfig(ip);
-    }
+    lastConfig.sq_ip = (stateData.sq_ip != null ? String(stateData.sq_ip) : '').trim();
+    lastConfig.data_dir = (configData.data_dir != null ? String(configData.data_dir) : 'data').trim() || 'data';
   } catch (_) {
     channels = [];
   }
 }
 
-function saveStateToServer() {
+function saveStateToServer(currentShow) {
   const payload = { channels };
+  if (currentShow !== undefined && currentShow !== null) payload.current_show = currentShow;
   return fetch(API_BASE + '/api/state', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -33,13 +36,11 @@ function saveStateToServer() {
 }
 
 function getStoredIP() {
-  const el = document.getElementById('sq-ip');
-  return el ? el.value.trim() : '';
+  return lastConfig.sq_ip || '';
 }
 
 function setStoredIP(ip) {
-  const el = document.getElementById('sq-ip');
-  if (el) el.value = (ip || '').trim();
+  lastConfig.sq_ip = (ip || '').trim();
 }
 
 function nextId() {
@@ -122,19 +123,25 @@ function displayGain(channel) {
   return channel.pad ? channel.gain - 20 : channel.gain;
 }
 
-function saveConfig(ip) {
-  fetch(API_BASE + '/api/config', {
+function saveConfigPayload(payload) {
+  const body = { sq_ip: (payload.sq_ip != null ? payload.sq_ip : lastConfig.sq_ip).trim(), data_dir: (payload.data_dir != null ? payload.data_dir : lastConfig.data_dir).trim() || 'data' };
+  return fetch(API_BASE + '/api/config', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sq_ip: (ip || '').trim() }),
-  }).catch(() => {});
+    body: JSON.stringify(body),
+  }).then((res) => {
+    if (!res.ok) return res.json().then((err) => { throw new Error(err.error || res.statusText); });
+    return res.json();
+  }).then((data) => {
+    lastConfig.sq_ip = (data.sq_ip != null ? String(data.sq_ip) : '').trim();
+    lastConfig.data_dir = (data.data_dir != null ? String(data.data_dir) : 'data').trim() || 'data';
+    return data;
+  });
 }
 
 function applyShowIP(ip) {
   const s = (ip || '').trim();
   if (!s) return;
-  setStoredIP(s);
-  saveConfig(s);
-  const el = document.getElementById('sq-ip');
-  if (el) el.value = s;
+  lastConfig.sq_ip = s;
+  saveConfigPayload({ sq_ip: s, data_dir: lastConfig.data_dir }).catch(() => {});
 }

@@ -3,49 +3,73 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
 
+// syncStatus holds progress and result of the background sync.
+var (
+	syncMu       sync.Mutex
+	syncStatus   string          // "idle" | "running"
+	syncCurrent  int             // 0-based index of current channel
+	syncTotal    int             // total channels
+	syncLastResult *syncResult   // set when status becomes "idle"
+)
+
+type syncResult struct {
+	Synced int    `json:"synced,omitempty"`
+	Error  string `json:"error,omitempty"`
+}
+
 func handleGetConfig(c *gin.Context) {
-	sqip, err := LoadConfig()
+	sqip, dataDirOut, err := LoadConfig()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"sq_ip": sqip})
+	c.JSON(http.StatusOK, gin.H{"sq_ip": sqip, "data_dir": dataDirOut})
 }
 
 func handlePostConfig(c *gin.Context) {
 	var body struct {
-		SQIP string `json:"sq_ip"`
+		SQIP    string `json:"sq_ip"`
+		DataDir string `json:"data_dir"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if err := SaveConfig(body.SQIP); err != nil {
+	dir := strings.TrimSpace(body.DataDir)
+	if err := SaveConfig(strings.TrimSpace(body.SQIP), dir); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"sq_ip": strings.TrimSpace(body.SQIP)})
+	// Reload state from (possibly new) data dir
+	if err := LoadState(); err != nil {
+		log.Printf("sqapi: reload state after config save: %v", err)
+	}
+	c.JSON(http.StatusOK, gin.H{"sq_ip": strings.TrimSpace(body.SQIP), "data_dir": GetDataDir()})
 }
 
 func handleGetState(c *gin.Context) {
-	sqip, _ := LoadConfig()
+	sqip, _, _ := LoadConfig()
 	channels := GetState()
-	c.JSON(http.StatusOK, gin.H{"channels": channels, "sq_ip": sqip})
+	currentShow := GetCurrentShow()
+	c.JSON(http.StatusOK, gin.H{"channels": channels, "sq_ip": sqip, "current_show": currentShow})
 }
 
 func handlePostState(c *gin.Context) {
 	var body struct {
-		Channels []ChannelState `json:"channels"`
-		SqIP     string         `json:"sq_ip"`
+		Channels    []ChannelState `json:"channels"`
+		SqIP        string         `json:"sq_ip"`
+		CurrentShow *string        `json:"current_show"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -54,17 +78,23 @@ func handlePostState(c *gin.Context) {
 	if body.Channels == nil {
 		body.Channels = []ChannelState{}
 	}
+	if body.CurrentShow != nil {
+		if err := SetCurrentShow(*body.CurrentShow); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
 	if err := SetState(body.Channels); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	if body.SqIP != "" {
-		_ = SaveConfig(strings.TrimSpace(body.SqIP))
+		_ = SaveConfig(strings.TrimSpace(body.SqIP), "")
 	}
-	c.JSON(http.StatusOK, gin.H{"channels": GetState()})
+	c.JSON(http.StatusOK, gin.H{"channels": GetState(), "current_show": GetCurrentShow()})
 }
 
-// handlePostSync sends the full backend state to the mixer (only place we push the entire list).
+// handlePostSync starts syncing the full backend state to the mixer in the background; returns 202 immediately.
 func handlePostSync(getAddr func(*gin.Context) (string, bool)) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		addr, ok := getAddr(c)
@@ -72,48 +102,94 @@ func handlePostSync(getAddr func(*gin.Context) (string, bool)) gin.HandlerFunc {
 			return
 		}
 		channels := GetState()
-		for _, ch := range channels {
-			bus := ch.PreampBus
-			if bus != "local" && bus != "slink" {
-				bus = "local"
-			}
-			var phantomPkt, padPkt, gainPkt []byte
-			if bus == "slink" {
-				phantomPkt = buildPhantomSLink(ch.PreampId, ch.Phantom)
-				padPkt = buildPadSLink(ch.PreampId, ch.Pad)
-				gainPkt = buildGainSLink(ch.PreampId, ch.Gain)
-			} else {
-				phantomPkt = buildPhantom(ch.PreampId, ch.Phantom)
-				padPkt = buildPad(ch.PreampId, ch.Pad)
-				gainPkt = buildGain(ch.PreampId, ch.Gain)
-			}
-			if err := sendToSQ(addr, phantomPkt); err != nil {
-				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-				return
-			}
-			phantomVal := "off"
-			if ch.Phantom {
-				phantomVal = "on"
-			}
-			LogTXPreamp(bus, ch.PreampId, "phantom", phantomVal)
-			if err := sendToSQ(addr, padPkt); err != nil {
-				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-				return
-			}
-			padVal := "off"
-			if ch.Pad {
-				padVal = "on"
-			}
-			LogTXPreamp(bus, ch.PreampId, "pad", padVal)
-			if err := sendToSQ(addr, gainPkt); err != nil {
-				c.JSON(http.StatusBadGateway, gin.H{"error": err.Error()})
-				return
-			}
-			LogTXPreamp(bus, ch.PreampId, "gain", fmt.Sprintf("%.0f dB", ch.Gain))
-			time.Sleep(40 * time.Millisecond)
+		syncMu.Lock()
+		if syncStatus == "running" {
+			syncMu.Unlock()
+			c.JSON(http.StatusConflict, gin.H{"error": "sync already in progress"})
+			return
 		}
-		c.JSON(http.StatusOK, gin.H{"synced": len(channels)})
+		syncStatus = "running"
+		syncCurrent = 0
+		syncTotal = len(channels)
+		syncLastResult = nil
+		syncMu.Unlock()
+
+		go runSyncInBackground(addr, channels)
+		c.JSON(http.StatusAccepted, gin.H{"started": true})
 	}
+}
+
+func runSyncInBackground(addr string, channels []ChannelState) {
+	defer func() {
+		syncMu.Lock()
+		syncStatus = "idle"
+		syncMu.Unlock()
+	}()
+
+	for i, ch := range channels {
+		syncMu.Lock()
+		syncCurrent = i
+		syncMu.Unlock()
+
+		bus := ch.PreampBus
+		if bus != "local" && bus != "slink" {
+			bus = "local"
+		}
+		var phantomPkt, padPkt, gainPkt []byte
+		if bus == "slink" {
+			phantomPkt = buildPhantomSLink(ch.PreampId, ch.Phantom)
+			padPkt = buildPadSLink(ch.PreampId, ch.Pad)
+			gainPkt = buildGainSLink(ch.PreampId, ch.Gain)
+		} else {
+			phantomPkt = buildPhantom(ch.PreampId, ch.Phantom)
+			padPkt = buildPad(ch.PreampId, ch.Pad)
+			gainPkt = buildGain(ch.PreampId, ch.Gain)
+		}
+		if err := sendToSQ(addr, phantomPkt); err != nil {
+			syncMu.Lock()
+			syncLastResult = &syncResult{Error: err.Error()}
+			syncMu.Unlock()
+			return
+		}
+		phantomVal := "off"
+		if ch.Phantom {
+			phantomVal = "on"
+		}
+		LogTXPreamp(bus, ch.PreampId, "phantom", phantomVal)
+		if err := sendToSQ(addr, padPkt); err != nil {
+			syncMu.Lock()
+			syncLastResult = &syncResult{Error: err.Error()}
+			syncMu.Unlock()
+			return
+		}
+		padVal := "off"
+		if ch.Pad {
+			padVal = "on"
+		}
+		LogTXPreamp(bus, ch.PreampId, "pad", padVal)
+		if err := sendToSQ(addr, gainPkt); err != nil {
+			syncMu.Lock()
+			syncLastResult = &syncResult{Error: err.Error()}
+			syncMu.Unlock()
+			return
+		}
+		LogTXPreamp(bus, ch.PreampId, "gain", fmt.Sprintf("%.0f dB", ch.Gain))
+		time.Sleep(40 * time.Millisecond)
+	}
+
+	syncMu.Lock()
+	syncLastResult = &syncResult{Synced: len(channels)}
+	syncMu.Unlock()
+}
+
+func handleGetSyncStatus(c *gin.Context) {
+	syncMu.Lock()
+	defer syncMu.Unlock()
+	out := gin.H{"status": syncStatus, "current": syncCurrent, "total": syncTotal}
+	if syncLastResult != nil {
+		out["last_result"] = syncLastResult
+	}
+	c.JSON(http.StatusOK, out)
 }
 
 func handleGetShows(c *gin.Context) {
@@ -159,18 +235,28 @@ func handlePostShow(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
+	_ = SetCurrentShow(name)
 	c.JSON(http.StatusOK, gin.H{"name": name})
 }
 
-func makeGetAddr(sqPort string) func(*gin.Context) (string, bool) {
-	defaultSQIP := os.Getenv("SQ_IP")
-	return func(c *gin.Context) (string, bool) {
-		ip, _ := LoadConfig()
-		if ip == "" {
-			ip = defaultSQIP
+func handleDeleteShow(c *gin.Context) {
+	name := c.Param("name")
+	if err := DeleteShow(name); err != nil {
+		if os.IsNotExist(err) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "show not found"})
+			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+func makeGetAddr(sqPort string) func(*gin.Context) (string, bool) {
+	return func(c *gin.Context) (string, bool) {
+		ip, _, _ := LoadConfig()
 		if ip == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "SQ IP nincs beállítva: állítsd SQ_IP env-et vagy mentsd a frontenden"})
+			c.JSON(http.StatusBadRequest, gin.H{"error": "SQ IP not set: save on the frontend"})
 			return "", false
 		}
 		return strings.TrimSpace(ip) + ":" + sqPort, true

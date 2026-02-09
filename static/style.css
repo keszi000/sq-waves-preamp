@@ -445,7 +445,7 @@ main {
   border: 1px solid var(--border);
 }
 
-.server-show-item span {
+.server-show-item .server-show-name {
   font-size: 0.9rem;
   flex: 1;
   min-width: 0;
@@ -453,8 +453,23 @@ main {
   text-overflow: ellipsis;
 }
 
+.server-show-item .show-item-current {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.server-show-item.is-current {
+  border-left: 2px solid var(--accent);
+  padding-left: calc(0.6rem - 2px);
+}
+
 .server-show-item .btn-overwrite,
-.server-show-item .btn-load {
+.server-show-item .btn-load,
+.server-show-item .btn-export,
+.server-show-item .btn-delete {
   flex-shrink: 0;
   padding: 0.35rem 0.6rem;
   font-size: 0.8rem;
@@ -466,8 +481,41 @@ main {
 }
 
 .server-show-item .btn-overwrite:hover,
-.server-show-item .btn-load:hover {
+.server-show-item .btn-load:hover,
+.server-show-item .btn-export:hover {
   background: var(--border);
+}
+
+.server-show-item .btn-delete:hover {
+  background: rgba(220, 53, 69, 0.2);
+  border-color: rgba(220, 53, 69, 0.5);
+  color: var(--text);
+}
+
+.config-form label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.25rem;
+  margin-top: 0.75rem;
+}
+.config-form label:first-child { margin-top: 0; }
+.config-form input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+.config-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.config-form {
+  margin-bottom: 1.25rem;
 }
 
 .server-show-new label {
@@ -508,4 +556,17 @@ main {
   margin: 0 0 1rem;
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+.show-manager-import {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.show-manager-import label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 0.35rem;
 }
