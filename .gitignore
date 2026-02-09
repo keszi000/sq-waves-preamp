@@ -3,3 +3,4 @@ sqapi
 *.app
 AppIcon.icns
 AppIcon.iconset
+config.json

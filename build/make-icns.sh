@@ -1,7 +1,9 @@
 #!/bin/bash
 # Create AppIcon.icns from static/icon.svg (macOS only; uses qlmanage, sips, iconutil).
+# Run from repo root or call from build/ (script cd's to repo root).
 set -e
-cd "$(dirname "$0")"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
 SVG="static/icon.svg"
 if [ ! -f "$SVG" ]; then
   echo "No $SVG, skipping icon."

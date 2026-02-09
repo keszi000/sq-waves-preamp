@@ -1,29 +1,28 @@
-# sqapi
+# SQ Preamp manager
 
-Web UI + HTTP API to control Allen & Heath SQ mixer preamps (phantom, pad, gain) over TCP.
+Control your **Allen & Heath SQ** mixer’s preamps (phantom power, pad, gain) from your computer — without touching the mixer. Useful when the SQ is used as tie-lines for recording (e.g. USB, or with LV1 / Waves I/O): set and recall preamp settings from this app.
 
-**What is this?** The project’s goal: when you use the SQ mixer only as tie-lines (device-to-device patch) for preamps — e.g. for USB recording, or LV1 with Waves I/O, etc. — you can control the preamps directly with this, without touching anything on the mixer.
+---
 
-**Run:**
+## What it does
 
-```bash
-go run .
-```
+- **Channels** — Add as many channels as you need. For each channel you choose:
+  - **Local** preamp (inputs 1–16, talkback 17, or stereo line 18–21)
+  - **S-Link** preamp (1–40)
+- **Controls per channel** — Phantom (on/off), Pad (on/off), Gain (0–60 dB). Stereo line inputs (18–21) have no preamp controls.
+- **Sync all** — Sends the current channel settings to the mixer in one go. Use after loading a show or changing many channels.
+- **Shows** — Save the current channel list and settings under a name. Load a show to restore it, then optionally sync to the mixer. You can overwrite existing shows or create new ones.
+- **Show manager** — List all saved shows, export one to a JSON file, import a JSON file as a new show, or delete a show. The current show can be changed or cleared.
+- **Config** — Set the mixer’s **IP address** and (if needed) the folder where shows and state are stored. You can reset the app state (clear all channels) from Config.
 
-The app opens in an **embedded window** (native WebView, no browser). Enter the mixer IP, add channels, assign each to a Local (1–17) or S-Link (1–40) preamp, set phantom/pad/gain. **Sync all** sends current state to the mixer. Build requires **CGO** (on macOS: Xcode Command Line Tools).
+---
 
-**Launch without Terminal (GUI only):**
-- **macOS:** run `./build-mac.sh` — creates *SQ Preamp manager.app*. Put `config.json` and `data/` in the same folder as the .app, then double-click the app (no terminal window).
-- **Windows:** build with `go build -ldflags "-H windowsgui" -o sqapi.exe` so double-clicking the exe doesn’t open a console.
+## Getting started
 
-**Saving:** Save/Load show to server (list + overwrite or new). Show manager: export/import JSON file. SQ IP is stored in the show.
+1. **Download** the release for your system (Windows or macOS) from the [Releases](https://github.com/keszi000/sq-waves-preamp/releases) page and unzip.
+2. **Windows:** Run `sqapi.exe`.  
+   **macOS:** Put `config.json` and the `data` folder (if you have them) in the same folder as **SQ Preamp manager.app**, then double‑click the app.
+3. Open **Config**, enter your SQ mixer’s **IP address**, and save.
+4. Add channels (Edit → + New channel), set bus and preamp per channel, then use Phantom / Pad / Gain. Save your layout as a **show** and use **Sync all** to send it to the mixer.
 
-**API (local preamp 1–17):**
-
-- `POST /preamp/local/:id/phantom?on=true|false`
-- `POST /preamp/local/:id/pad?on=true|false`
-- `POST /preamp/local/:id/gain` — body `{"db": 0..60}` or `?db=12`
-
-**S-Link** (preamp 1–40): same endpoints with `/preamp/slink/:id/phantom`, `pad`, `gain` (ch0 range 16–55).
-
-Config and shows are stored in `./data` (config.json, state.json, shows/). HTTP server listens on port 8080.
+Your settings and shows are stored on your computer in the app folder (or the data folder you set in Config).

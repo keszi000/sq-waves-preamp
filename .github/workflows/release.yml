@@ -1,0 +1,96 @@
+# Build and publish release artifacts for Windows and macOS when pushing a version tag (e.g. v0.1).
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build (GUI, no console)
+        run: go build -ldflags "-H windowsgui" -o sqapi.exe .
+
+      - name: Zip
+        run: |
+          $tag = "${{ github.ref_name }}"
+          Compress-Archive -Path sqapi.exe -DestinationPath "sqapi-$tag-windows-amd64.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: sqapi-*-windows-amd64.zip
+
+  build-mac:
+    name: macOS
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Build .app
+        run: chmod +x build/build-mac.sh build/make-icns.sh && ./build/build-mac.sh
+
+      - name: Zip
+        run: |
+          tag="${{ github.ref_name }}"
+          zip -r "sqapi-${tag}-darwin-arm64.zip" "SQ Preamp manager.app"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac
+          path: sqapi-*-darwin-arm64.zip
+
+  release:
+    name: Create release
+    runs-on: ubuntu-latest
+    needs: [build-windows, build-mac]
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Move artifacts to root
+        run: |
+          mv artifacts/windows/*.zip . 2>/dev/null || true
+          mv artifacts/mac/*.zip . 2>/dev/null || true
+          ls -la *.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            **SQ Preamp manager** — Web UI to control Allen & Heath SQ mixer preamps (phantom, pad, gain).
+
+            - **Windows:** `sqapi-*-windows-amd64.zip` — unzip and run `sqapi.exe` (no console window).
+            - **macOS:** `sqapi-*-darwin-arm64.zip` — unzip, put `config.json` and `data/` next to the .app, then double-click **SQ Preamp manager.app**.
+
+            Requires CGO (Go 1.21+). Config and shows are stored in `config.json` and `data/` next to the app.
+          files: |
+            sqapi-*-windows-amd64.zip
+            sqapi-*-darwin-arm64.zip
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

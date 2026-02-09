@@ -1,7 +1,9 @@
 #!/bin/bash
 # Build sqapi and create "SQ Preamp manager.app" so double-click runs without opening Terminal.
+# Run from repo root or call from build/ (script cd's to repo root).
 set -e
-cd "$(dirname "$0")"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
 
 echo "Building..."
 CGO_ENABLED=1 go build -o sqapi .
@@ -12,7 +14,7 @@ mkdir -p "$APP/Contents/MacOS"
 mv sqapi "$APP/Contents/MacOS/"
 
 # Icon (optional)
-./make-icns.sh 2>/dev/null || true
+./build/make-icns.sh 2>/dev/null || true
 mkdir -p "$APP/Contents/Resources"
 if [ -f AppIcon.icns ]; then
   cp AppIcon.icns "$APP/Contents/Resources/"
