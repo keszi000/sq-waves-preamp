@@ -1,6 +1,7 @@
 // Channel UI: render, add, edit mode
 function preampOptionLabel(bus, i) {
   if (bus === 'local' && i === 17) return '17 (TB)';
+  if (bus === 'local' && LINE_LABELS[i]) return String(i) + ' ' + LINE_LABELS[i];
   return String(i);
 }
 
@@ -17,7 +18,8 @@ function preampViewLabel(bus, id) {
 function renderChannel(channel) {
   normalizeChannelPreamp(channel);
   const div = document.createElement('div');
-  div.className = 'channel';
+  const line = isLineChannel(channel);
+  div.className = 'channel' + (line ? ' channel-line' : '');
   div.dataset.id = String(channel.id);
 
   const bus = channel.preampBus;
@@ -41,25 +43,28 @@ function renderChannel(channel) {
       <select class="channel-preamp-bus edit-only">${busOptions}</select>
       <select class="channel-preamp-id edit-only">${idOptions}</select>
     </div>
-    <div class="channel-row">
-      <label>Phantom</label>
-      <div class="toggle-wrap" data-toggler="phantom">
-        <div class="toggle ${channel.phantom ? 'on' : ''}" role="button" tabindex="0"></div>
-        <span>${channel.phantom ? 'On' : 'Off'}</span>
+    <div class="channel-preamp-controls-block">
+      <div class="channel-line-hint-row"><p class="channel-line-hint">Line input — no preamp controls</p></div>
+      <div class="channel-row channel-controls-row" ${line ? ' data-disabled="true"' : ''}>
+        <label>Phantom</label>
+        <div class="toggle-wrap" data-toggler="phantom">
+          <div class="toggle ${channel.phantom ? 'on' : ''}" role="button" tabindex="0"></div>
+          <span>${channel.phantom ? 'On' : 'Off'}</span>
+        </div>
       </div>
-    </div>
-    <div class="channel-row">
-      <label>Pad</label>
-      <div class="toggle-wrap" data-toggler="pad">
-        <div class="toggle ${channel.pad ? 'on' : ''}" role="button" tabindex="0"></div>
-        <span>${channel.pad ? 'On' : 'Off'}</span>
+      <div class="channel-row channel-controls-row" ${line ? ' data-disabled="true"' : ''}>
+        <label>Pad</label>
+        <div class="toggle-wrap" data-toggler="pad">
+          <div class="toggle ${channel.pad ? 'on' : ''}" role="button" tabindex="0"></div>
+          <span>${channel.pad ? 'On' : 'Off'}</span>
+        </div>
       </div>
-    </div>
-    <div class="channel-row">
-      <label>Gain</label>
-      <div class="gain-slider-wrap">
-        <input type="range" class="gain-slider" min="0" max="60" step="1" value="${Math.round(channel.gain)}">
-        <span class="gain-value">${Math.round(displayGain(channel))} dB</span>
+      <div class="channel-row channel-controls-row" ${line ? ' data-disabled="true"' : ''}>
+        <label>Gain</label>
+        <div class="gain-slider-wrap">
+          <input type="range" class="gain-slider" min="0" max="60" step="1" value="${Math.round(channel.gain)}" ${line ? ' disabled' : ''}>
+          <span class="gain-value">${Math.round(displayGain(channel))} dB</span>
+        </div>
       </div>
     </div>
   `;
@@ -78,6 +83,15 @@ function renderChannel(channel) {
 
   function updatePreampView() {
     chView.textContent = preampViewLabel(channel.preampBus, channel.preampId);
+  }
+
+  function updateLineState() {
+    const line = isLineChannel(channel);
+    div.classList.toggle('channel-line', line);
+    const block = div.querySelector('.channel-preamp-controls-block');
+    if (block) block.dataset.disabled = line ? 'true' : '';
+    div.querySelectorAll('.channel-controls-row').forEach(r => { r.dataset.disabled = line ? 'true' : ''; });
+    gainSlider.disabled = line;
   }
 
   function refreshPreampIdOptions() {
@@ -110,6 +124,7 @@ function renderChannel(channel) {
     if (channel.preampId > max) channel.preampId = max;
     refreshPreampIdOptions();
     updatePreampView();
+    updateLineState();
     saveStateToServer().catch(() => {});
   });
 
@@ -125,10 +140,12 @@ function renderChannel(channel) {
   chSelect.addEventListener('change', () => {
     channel.preampId = parseInt(chSelect.value, 10);
     updatePreampView();
+    updateLineState();
     saveStateToServer().catch(() => {});
   });
 
   phantomToggle.addEventListener('click', () => {
+    if (isLineChannel(channel)) return;
     channel.phantom = !channel.phantom;
     phantomToggle.classList.toggle('on', channel.phantom);
     phantomWrap.querySelector('span').textContent = channel.phantom ? 'On' : 'Off';
@@ -137,6 +154,7 @@ function renderChannel(channel) {
   });
 
   padToggle.addEventListener('click', () => {
+    if (isLineChannel(channel)) return;
     channel.pad = !channel.pad;
     padToggle.classList.toggle('on', channel.pad);
     padWrap.querySelector('span').textContent = channel.pad ? 'On' : 'Off';
@@ -146,6 +164,7 @@ function renderChannel(channel) {
   });
 
   function setGainValue(v) {
+    if (isLineChannel(channel)) return;
     v = Math.min(60, Math.max(0, Math.round(parseFloat(v) || 0)));
     channel.gain = v;
     gainSlider.value = String(v);
@@ -162,6 +181,7 @@ function renderChannel(channel) {
 
   const gainWrap = div.querySelector('.gain-slider-wrap');
   gainWrap.addEventListener('wheel', (e) => {
+    if (isLineChannel(channel)) return;
     e.preventDefault();
     const step = e.deltaY > 0 ? -1 : 1;
     setGainValue(parseInt(gainSlider.value, 10) + step);

@@ -62,7 +62,7 @@ func handleGetState(c *gin.Context) {
 	sqip, _, _ := LoadConfig()
 	channels := GetState()
 	currentShow := GetCurrentShow()
-	c.JSON(http.StatusOK, gin.H{"channels": channels, "sq_ip": sqip, "current_show": currentShow})
+	c.JSON(http.StatusOK, gin.H{"channels": channels, "sq_ip": sqip, "current_show": currentShow, "line_preamp_ids": localLinePreampIDs})
 }
 
 func handlePostState(c *gin.Context) {
@@ -91,7 +91,7 @@ func handlePostState(c *gin.Context) {
 	if body.SqIP != "" {
 		_ = SaveConfig(strings.TrimSpace(body.SqIP), "")
 	}
-	c.JSON(http.StatusOK, gin.H{"channels": GetState(), "current_show": GetCurrentShow()})
+	c.JSON(http.StatusOK, gin.H{"channels": GetState(), "current_show": GetCurrentShow(), "line_preamp_ids": localLinePreampIDs})
 }
 
 // handlePostSync starts syncing the full backend state to the mixer in the background; returns 202 immediately.
@@ -108,9 +108,14 @@ func handlePostSync(getAddr func(*gin.Context) (string, bool)) gin.HandlerFunc {
 			c.JSON(http.StatusConflict, gin.H{"error": "sync already in progress"})
 			return
 		}
+		syncTotal = 0
+		for _, ch := range channels {
+			if ch.PreampBus != "local" || !isLocalLinePreamp(ch.PreampId) {
+				syncTotal++
+			}
+		}
 		syncStatus = "running"
 		syncCurrent = 0
-		syncTotal = len(channels)
 		syncLastResult = nil
 		syncMu.Unlock()
 
@@ -126,15 +131,19 @@ func runSyncInBackground(addr string, channels []ChannelState) {
 		syncMu.Unlock()
 	}()
 
-	for i, ch := range channels {
-		syncMu.Lock()
-		syncCurrent = i
-		syncMu.Unlock()
-
+	sent := 0
+	for _, ch := range channels {
 		bus := ch.PreampBus
 		if bus != "local" && bus != "slink" {
 			bus = "local"
 		}
+		if bus == "local" && isLocalLinePreamp(ch.PreampId) {
+			continue
+		}
+		syncMu.Lock()
+		syncCurrent = sent
+		syncMu.Unlock()
+
 		var phantomPkt, padPkt, gainPkt []byte
 		if bus == "slink" {
 			phantomPkt = buildPhantomSLink(ch.PreampId, ch.Phantom)
@@ -175,10 +184,11 @@ func runSyncInBackground(addr string, channels []ChannelState) {
 		}
 		LogTXPreamp(bus, ch.PreampId, "gain", fmt.Sprintf("%.0f dB", ch.Gain))
 		time.Sleep(40 * time.Millisecond)
+		sent++
 	}
 
 	syncMu.Lock()
-	syncLastResult = &syncResult{Synced: len(channels)}
+	syncLastResult = &syncResult{Synced: sent}
 	syncMu.Unlock()
 }
 
@@ -252,6 +262,18 @@ func handleDeleteShow(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// Local preamp 18–21 are stereo line inputs (ST1 L, ST1 R, ST2 L, ST2 R): no phantom/pad/gain, never send to SQ.
+var localLinePreampIDs = []int{18, 19, 20, 21}
+
+func isLocalLinePreamp(preampId int) bool {
+	for _, id := range localLinePreampIDs {
+		if id == preampId {
+			return true
+		}
+	}
+	return false
+}
+
 func makeGetAddr(sqPort string) func(*gin.Context) (string, bool) {
 	return func(c *gin.Context) (string, bool) {
 		ip, _, _ := LoadConfig()
@@ -265,11 +287,16 @@ func makeGetAddr(sqPort string) func(*gin.Context) (string, bool) {
 
 // runPreampBool sends a single phantom or pad command to the mixer (one packet), then updates backend state only.
 func runPreampBool(c *gin.Context, getAddr func(*gin.Context) (string, bool), bus string, parseID func(*gin.Context, string) (int, bool), buildFn func(int, bool) []byte, key string) {
-	addr, ok := getAddr(c)
+	preamp, ok := parseID(c, c.Param("id"))
 	if !ok {
 		return
 	}
-	preamp, ok := parseID(c, c.Param("id"))
+	if bus == "local" && isLocalLinePreamp(preamp) {
+		on := c.Query("on") == "true" || c.Query("on") == "1"
+		c.JSON(http.StatusOK, gin.H{"preamp": preamp, key: on})
+		return
+	}
+	addr, ok := getAddr(c)
 	if !ok {
 		return
 	}
@@ -293,11 +320,15 @@ func runPreampBool(c *gin.Context, getAddr func(*gin.Context) (string, bool), bu
 
 // runPreampGain sends a single gain command to the mixer (one packet), then updates backend state only.
 func runPreampGain(c *gin.Context, getAddr func(*gin.Context) (string, bool), bus string, parseID func(*gin.Context, string) (int, bool), buildFn func(int, float64) []byte) {
-	addr, ok := getAddr(c)
+	preamp, ok := parseID(c, c.Param("id"))
 	if !ok {
 		return
 	}
-	preamp, ok := parseID(c, c.Param("id"))
+	if bus == "local" && isLocalLinePreamp(preamp) {
+		c.JSON(http.StatusOK, gin.H{"preamp": preamp, "gain_db": 0})
+		return
+	}
+	addr, ok := getAddr(c)
 	if !ok {
 		return
 	}
@@ -316,8 +347,8 @@ func runPreampGain(c *gin.Context, getAddr func(*gin.Context) (string, bool), bu
 
 func parseLocalPreampID(c *gin.Context, id string) (int, bool) {
 	n, err := strconv.Atoi(id)
-	if err != nil || n < 1 || n > 17 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "local preamp must be 1–16 (input) or 17 (talkback)"})
+	if err != nil || n < 1 || n > 21 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "local preamp must be 1–17 (input/talkback) or 18–21 (stereo line)"})
 		return 0, false
 	}
 	return n, true

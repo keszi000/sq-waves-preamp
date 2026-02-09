@@ -17,9 +17,17 @@ async function loadStateFromServer() {
     channels.forEach(normalizeChannelPreamp);
     lastConfig.sq_ip = (stateData.sq_ip != null ? String(stateData.sq_ip) : '').trim();
     lastConfig.data_dir = (configData.data_dir != null ? String(configData.data_dir) : 'data').trim() || 'data';
+    linePreampIds = Array.isArray(stateData.line_preamp_ids) ? stateData.line_preamp_ids : [18, 19, 20, 21];
   } catch (_) {
     channels = [];
   }
+}
+
+/** Local preamp IDs that are line (stereo) inputs: no phantom/pad/gain, set by backend. */
+let linePreampIds = [18, 19, 20, 21];
+const LINE_LABELS = { 18: 'ST1 L', 19: 'ST1 R', 20: 'ST2 L', 21: 'ST2 R' };
+function isLineChannel(channel) {
+  return channel && channel.preampBus === 'local' && linePreampIds.includes(channel.preampId);
 }
 
 function saveStateToServer(currentShow) {
@@ -48,13 +56,13 @@ function nextId() {
   return ids.length ? Math.max(...ids) + 1 : 1;
 }
 
-const PREAMP_LOCAL_MAX = 17;
+const PREAMP_LOCAL_MAX = 21; // 1–17 input/talkback, 18–21 stereo line (ST1 L/R, ST2 L/R)
 const PREAMP_SLINK_MAX = 40;
 
 function normalizeChannelPreamp(channel) {
   if (!channel || typeof channel !== 'object') return;
   if (channel.preampBus === undefined || channel.preampId === undefined) {
-    const ch = Math.min(17, Math.max(1, parseInt(channel.channel, 10) || 1));
+    const ch = Math.min(PREAMP_LOCAL_MAX, Math.max(1, parseInt(channel.channel, 10) || 1));
     channel.preampBus = 'local';
     channel.preampId = ch;
   }

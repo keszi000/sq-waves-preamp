@@ -201,6 +201,50 @@ main {
   color: var(--danger);
 }
 
+/* Fixed-height row so Phantom/Pad/Gain align across all cards */
+.channel-line-hint-row {
+  min-height: 1.35rem;
+  margin-bottom: 0.25rem;
+}
+.channel-line-hint {
+  display: none;
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+.channel-line .channel-line-hint {
+  display: block;
+}
+.channel-preamp-controls-block .channel-controls-row {
+  margin-top: 0.6rem;
+}
+.channel-preamp-controls-block .channel-controls-row:first-of-type {
+  margin-top: 0;
+}
+.channel-line .channel-controls-row[data-disabled="true"] {
+  opacity: 0.7;
+  pointer-events: none;
+}
+.channel-line .channel-controls-row[data-disabled="true"] label,
+.channel-line .channel-controls-row[data-disabled="true"] .gain-value {
+  color: var(--muted);
+}
+.channel-line .channel-controls-row[data-disabled="true"] .gain-slider:disabled {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+.channel-line .gain-slider-wrap input[type="range"]:disabled {
+  background: var(--border);
+}
+.channel-line .gain-slider-wrap input[type="range"]:disabled::-webkit-slider-thumb {
+  background: var(--muted);
+  cursor: not-allowed;
+}
+.channel-line .gain-slider-wrap input[type="range"]:disabled::-moz-range-thumb {
+  background: var(--muted);
+  cursor: not-allowed;
+}
+
 .channel-row {
   display: flex;
   align-items: center;
