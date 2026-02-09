@@ -94,7 +94,10 @@ func handlePostState(c *gin.Context) {
 		return
 	}
 	if body.SqIP != "" {
-		_ = SaveConfig(strings.TrimSpace(body.SqIP), "")
+		if err := SaveConfig(strings.TrimSpace(body.SqIP), ""); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 	}
 	c.JSON(http.StatusOK, gin.H{"channels": GetState(), "current_show": GetCurrentShow(), "line_preamp_ids": localLinePreampIDs})
 }

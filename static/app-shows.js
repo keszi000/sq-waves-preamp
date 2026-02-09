@@ -132,6 +132,7 @@ async function loadShowFromServer(name) {
       const id = Math.min(max, Math.max(1, parseInt(rawId, 10) || 1));
       let idR = parseInt(c.preampIdR, 10) || 0;
       if (idR === id || idR < 1 || idR > max) idR = 0;
+      if (bus === 'local' && idR && !isSameLocalFamily(id, idR)) idR = 0;
       return {
         id: startId + i,
         name: c.name ?? '',
@@ -144,7 +145,11 @@ async function loadShowFromServer(name) {
       };
     });
     if (data.sq_ip) applyShowIP(data.sq_ip);
-    await saveStateToServer(name).catch(() => {});
+    const saved = await saveStateToServer(name);
+    if (saved && Array.isArray(saved.channels)) {
+      channels = saved.channels;
+      channels.forEach(normalizeChannelPreamp);
+    }
     render();
     closeLoadShowModal();
     if (getStoredIP()) {
@@ -161,6 +166,8 @@ async function loadShowFromServer(name) {
     }
   } catch (e) {
     toast(e.message || 'Load failed', 'error');
+    await loadStateFromServer().catch(() => {});
+    render();
   }
 }
 
