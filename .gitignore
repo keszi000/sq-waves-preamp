@@ -1,2 +1,5 @@
 /data/
 sqapi
+*.app
+AppIcon.icns
+AppIcon.iconset

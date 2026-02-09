@@ -12,6 +12,10 @@ go run .
 
 The app opens in an **embedded window** (native WebView, no browser). Enter the mixer IP, add channels, assign each to a Local (1–17) or S-Link (1–40) preamp, set phantom/pad/gain. **Sync all** sends current state to the mixer. Build requires **CGO** (on macOS: Xcode Command Line Tools).
 
+**Launch without Terminal (GUI only):**
+- **macOS:** run `./build-mac.sh` — creates *SQ Preamp manager.app*. Put `config.json` and `data/` in the same folder as the .app, then double-click the app (no terminal window).
+- **Windows:** build with `go build -ldflags "-H windowsgui" -o sqapi.exe` so double-clicking the exe doesn’t open a console.
+
 **Saving:** Save/Load show to server (list + overwrite or new). Show manager: export/import JSON file. SQ IP is stored in the show.
 
 **API (local preamp 1–17):**

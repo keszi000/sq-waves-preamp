@@ -7,7 +7,9 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -41,6 +43,16 @@ func init() {
 }
 
 func main() {
+	// When run from a macOS .app bundle, CWD is often home; use the folder containing the .app for config/data.
+	if exe, err := os.Executable(); err == nil {
+		if dir := filepath.Dir(exe); strings.Contains(dir, ".app/Contents/MacOS") {
+			appDir := filepath.Clean(filepath.Join(dir, "..", "..", ".."))
+			if err := os.Chdir(appDir); err == nil {
+				log.Printf("sqapi: chdir to app dir %s", appDir)
+			}
+		}
+	}
+
 	sqip, _, err := LoadConfig()
 	if err != nil {
 		log.Printf("sqapi: load config: %v", err)
