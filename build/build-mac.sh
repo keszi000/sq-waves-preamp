@@ -54,5 +54,8 @@ ${ICON_PLIST}</dict>
 </plist>
 PLIST
 
+# Ad-hoc sign so macOS doesn't show "damaged" (Gatekeeper accepts the bundle structure)
+codesign -s - --force --deep "$APP" 2>/dev/null || true
+
 echo "Created $APP"
 echo "Put config.json and data/ next to the .app, then double-click the app."

@@ -199,7 +199,7 @@ function renderChannel(channel) {
     v = Math.min(60, Math.max(0, Math.round(parseFloat(v) || 0)));
     channel.gain = v;
     gainSlider.value = String(v);
-    gainValue.textContent = v + ' dB';
+    gainValue.textContent = Math.round(displayGain(channel)) + ' dB';
     clearTimeout(gainTimeout);
     gainTimeout = setTimeout(() => {
       saveStateToServer().catch(() => {});
