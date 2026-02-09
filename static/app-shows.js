@@ -59,7 +59,7 @@ function saveOverwrite(name) {
 async function doSaveShow(name) {
   const payload = {
     name: name.trim(),
-    channels: channels.map(c => ({ name: c.name, preampBus: c.preampBus, preampId: c.preampId, phantom: c.phantom, pad: c.pad, gain: c.gain })),
+    channels: channels.map(c => ({ name: c.name, preampBus: c.preampBus, preampId: c.preampId, preampIdR: c.preampIdR || 0, phantom: c.phantom, pad: c.pad, gain: c.gain })),
     sq_ip: getStoredIP() || undefined,
   };
   const res = await fetch(API_BASE + '/api/shows', {
@@ -130,11 +130,14 @@ async function loadShowFromServer(name) {
       const rawId = c.preampId ?? c.channel ?? 1;
       const max = bus === 'slink' ? PREAMP_SLINK_MAX : PREAMP_LOCAL_MAX;
       const id = Math.min(max, Math.max(1, parseInt(rawId, 10) || 1));
+      let idR = parseInt(c.preampIdR, 10) || 0;
+      if (idR === id || idR < 1 || idR > max) idR = 0;
       return {
         id: startId + i,
         name: c.name ?? '',
         preampBus: bus,
         preampId: id,
+        preampIdR: idR || 0,
         phantom: !!c.phantom,
         pad: !!c.pad,
         gain: Math.min(60, Math.max(0, Math.round(parseFloat(c.gain) || 0))),

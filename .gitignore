@@ -4,3 +4,5 @@ sqapi
 AppIcon.icns
 AppIcon.iconset
 config.json
+rsrc_windows_*.syso
+winres/icon.png

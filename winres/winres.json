@@ -1,0 +1,23 @@
+{
+  "RT_GROUP_ICON": {
+    "APP": {
+      "0000": "icon.png"
+    }
+  },
+  "RT_VERSION": {
+    "#1": {
+      "0000": {
+        "info": {
+          "0409": {
+            "CompanyName": "SQ Preamp manager",
+            "FileDescription": "SQ Preamp manager — control Allen & Heath SQ mixer preamps",
+            "FileVersion": "0.0.0.0",
+            "LegalCopyright": "Open source",
+            "ProductName": "SQ Preamp manager",
+            "ProductVersion": "0.0.0.0"
+          }
+        }
+      }
+    }
+  }
+}

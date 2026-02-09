@@ -5,8 +5,10 @@ set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-echo "Building..."
-CGO_ENABLED=1 go build -o sqapi .
+if [ -z "$USE_EXISTING_BINARY" ] || [ ! -f sqapi ]; then
+  echo "Building..."
+  CGO_ENABLED=1 go build -o sqapi .
+fi
 
 APP="SQ Preamp manager.app"
 rm -rf "$APP"
@@ -25,6 +27,8 @@ else
   ICON_PLIST=""
 fi
 
+# Version from env (e.g. VERSION=0.1 in CI) or default
+VER="${VERSION:-0.0.0}"
 cat > "$APP/Contents/Info.plist" << PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -36,10 +40,16 @@ cat > "$APP/Contents/Info.plist" << PLIST
 	<string>com.sqapi.preamp</string>
 	<key>CFBundleName</key>
 	<string>SQ Preamp manager</string>
+	<key>CFBundleShortVersionString</key>
+	<string>$VER</string>
+	<key>CFBundleVersion</key>
+	<string>$VER</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Open source. Allen &amp; Heath SQ preamp control.</string>
 ${ICON_PLIST}</dict>
 </plist>
 PLIST

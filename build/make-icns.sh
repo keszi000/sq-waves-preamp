@@ -11,8 +11,12 @@ if [ ! -f "$SVG" ]; then
 fi
 echo "Building icon from $SVG..."
 qlmanage -t -s 1024 -o . "$SVG" 2>/dev/null || true
-PNG="${SVG}.png"
-[ -f "$PNG" ] || { echo "Could not export PNG from SVG (install qlmanage?). Skipping icon."; exit 0; }
+# qlmanage may write icon.svg.png or static_icon.svg.png into -o directory
+PNG=""
+for f in icon.svg.png static_icon.svg.png "static/icon.svg.png"; do
+  [ -f "$f" ] && PNG="$f" && break
+done
+[ -n "$PNG" ] && [ -f "$PNG" ] || { echo "Could not export PNG from SVG (install qlmanage?). Skipping icon."; exit 0; }
 ICONSET="AppIcon.iconset"
 rm -rf "$ICONSET"
 mkdir -p "$ICONSET"

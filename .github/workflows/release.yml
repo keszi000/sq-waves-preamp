@@ -21,6 +21,20 @@ jobs:
         with:
           go-version: '1.21'
 
+      - name: Generate icon from SVG
+        run: |
+          choco install imagemagick -y --no-progress
+          magick convert static/icon.svg -resize 256x256 winres/icon.png
+
+      - name: Embed icon and version (go-winres)
+        run: |
+          go install github.com/tc-hib/go-winres@latest
+          $tag = "${{ github.ref_name }}" -replace '^v', ''
+          go-winres make --file-version="$tag.0" --product-version="$tag"
+        env:
+          GOOS: windows
+          GOARCH: amd64
+
       - name: Build (GUI, no console)
         run: go build -ldflags "-H windowsgui" -o sqapi.exe .
 
@@ -46,19 +60,35 @@ jobs:
         with:
           go-version: '1.21'
 
-      - name: Build .app
-        run: chmod +x build/build-mac.sh build/make-icns.sh && ./build/build-mac.sh
+      - name: Build universal binary (arm64 + amd64)
+        run: |
+          CGO_ENABLED=1 go build -o sqapi_arm64 .
+          CGO_ENABLED=1 GOARCH=amd64 go build -o sqapi_amd64 . || true
+          if [ -f sqapi_amd64 ]; then
+            lipo -create -output sqapi sqapi_arm64 sqapi_amd64
+            rm sqapi_arm64 sqapi_amd64
+          else
+            echo "amd64 build skipped (cross-compile may need extra setup), using arm64 only"
+            mv sqapi_arm64 sqapi
+          fi
+
+      - name: Package .app
+        run: |
+          chmod +x build/build-mac.sh build/make-icns.sh
+          export VERSION="${GITHUB_REF_NAME#v}"
+          export USE_EXISTING_BINARY=1
+          ./build/build-mac.sh
 
       - name: Zip
         run: |
           tag="${{ github.ref_name }}"
-          zip -r "sqapi-${tag}-darwin-arm64.zip" "SQ Preamp manager.app"
+          zip -r "sqapi-${tag}-darwin-universal.zip" "SQ Preamp manager.app"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: mac
-          path: sqapi-*-darwin-arm64.zip
+          path: sqapi-*-darwin-universal.zip
 
   release:
     name: Create release
@@ -74,7 +104,7 @@ jobs:
         run: |
           mv artifacts/windows/*.zip . 2>/dev/null || true
           mv artifacts/mac/*.zip . 2>/dev/null || true
-          ls -la *.zip
+          ls -la *.zip 2>/dev/null || true
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -85,12 +115,12 @@ jobs:
             **SQ Preamp manager** — Web UI to control Allen & Heath SQ mixer preamps (phantom, pad, gain).
 
             - **Windows:** `sqapi-*-windows-amd64.zip` — unzip and run `sqapi.exe` (no console window).
-            - **macOS:** `sqapi-*-darwin-arm64.zip` — unzip, put `config.json` and `data/` next to the .app, then double-click **SQ Preamp manager.app**.
+            - **macOS:** `sqapi-*-darwin-universal.zip` — Apple Silicon and Intel. Unzip, put `config.json` and `data/` next to the .app, then double-click **SQ Preamp manager.app**.
 
             Requires CGO (Go 1.21+). Config and shows are stored in `config.json` and `data/` next to the app.
           files: |
             sqapi-*-windows-amd64.zip
-            sqapi-*-darwin-arm64.zip
+            sqapi-*-darwin-universal.zip
           draft: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

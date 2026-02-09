@@ -118,8 +118,18 @@ func handlePostSync(getAddr func(*gin.Context) (string, bool)) gin.HandlerFunc {
 		}
 		syncTotal = 0
 		for _, ch := range channels {
-			if ch.PreampBus != "local" || !isLocalLinePreamp(ch.PreampId) {
-				syncTotal++
+			if ch.PreampBus == "local" && isLocalLinePreamp(ch.PreampId) {
+				// left is line; only count right if stereo and not line
+				if ch.PreampIdR != 0 && !isLocalLinePreamp(ch.PreampIdR) {
+					syncTotal++
+				}
+				continue
+			}
+			syncTotal++
+			if ch.PreampIdR != 0 {
+				if ch.PreampBus != "local" || !isLocalLinePreamp(ch.PreampIdR) {
+					syncTotal++
+				}
 			}
 		}
 		syncStatus = "running"
@@ -145,40 +155,48 @@ func runSyncInBackground(addr string, channels []ChannelState) {
 		if bus != "local" && bus != "slink" {
 			bus = "local"
 		}
-		if bus == "local" && isLocalLinePreamp(ch.PreampId) {
-			continue
+		// Collect preamp IDs to send (1 or 2 for stereo); skip local line
+		ids := []int{ch.PreampId}
+		if ch.PreampIdR != 0 && ch.PreampIdR != ch.PreampId {
+			ids = append(ids, ch.PreampIdR)
 		}
-		syncMu.Lock()
-		syncCurrent = sent
-		syncMu.Unlock()
+		for _, id := range ids {
+			if bus == "local" && isLocalLinePreamp(id) {
+				continue
+			}
+			syncMu.Lock()
+			syncCurrent = sent
+			syncMu.Unlock()
 
-		var phantomPkt, padPkt, gainPkt []byte
-		if bus == "slink" {
-			phantomPkt = buildPhantomSLink(ch.PreampId, ch.Phantom)
-			padPkt = buildPadSLink(ch.PreampId, ch.Pad)
-			gainPkt = buildGainSLink(ch.PreampId, ch.Gain)
-		} else {
-			phantomPkt = buildPhantom(ch.PreampId, ch.Phantom)
-			padPkt = buildPad(ch.PreampId, ch.Pad)
-			gainPkt = buildGain(ch.PreampId, ch.Gain)
+
+			var phantomPkt, padPkt, gainPkt []byte
+			if bus == "slink" {
+				phantomPkt = buildPhantomSLink(id, ch.Phantom)
+				padPkt = buildPadSLink(id, ch.Pad)
+				gainPkt = buildGainSLink(id, ch.Gain)
+			} else {
+				phantomPkt = buildPhantom(id, ch.Phantom)
+				padPkt = buildPad(id, ch.Pad)
+				gainPkt = buildGain(id, ch.Gain)
+			}
+			if err := sendToSQ(addr, phantomPkt); err != nil {
+				setSyncResultError(err.Error())
+				return
+			}
+			LogTXPreamp(bus, id, "phantom", boolToOnOff(ch.Phantom))
+			if err := sendToSQ(addr, padPkt); err != nil {
+				setSyncResultError(err.Error())
+				return
+			}
+			LogTXPreamp(bus, id, "pad", boolToOnOff(ch.Pad))
+			if err := sendToSQ(addr, gainPkt); err != nil {
+				setSyncResultError(err.Error())
+				return
+			}
+			LogTXPreamp(bus, id, "gain", fmt.Sprintf("%.0f dB", ch.Gain))
+			time.Sleep(40 * time.Millisecond)
+			sent++
 		}
-		if err := sendToSQ(addr, phantomPkt); err != nil {
-			setSyncResultError(err.Error())
-			return
-		}
-		LogTXPreamp(bus, ch.PreampId, "phantom", boolToOnOff(ch.Phantom))
-		if err := sendToSQ(addr, padPkt); err != nil {
-			setSyncResultError(err.Error())
-			return
-		}
-		LogTXPreamp(bus, ch.PreampId, "pad", boolToOnOff(ch.Pad))
-		if err := sendToSQ(addr, gainPkt); err != nil {
-			setSyncResultError(err.Error())
-			return
-		}
-		LogTXPreamp(bus, ch.PreampId, "gain", fmt.Sprintf("%.0f dB", ch.Gain))
-		time.Sleep(40 * time.Millisecond)
-		sent++
 	}
 
 	syncMu.Lock()

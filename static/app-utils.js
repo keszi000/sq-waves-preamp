@@ -27,7 +27,10 @@ async function loadStateFromServer() {
 let linePreampIds = [18, 19, 20, 21];
 const LINE_LABELS = { 18: 'ST1 L', 19: 'ST1 R', 20: 'ST2 L', 21: 'ST2 R' };
 function isLineChannel(channel) {
-  return channel && channel.preampBus === 'local' && linePreampIds.includes(channel.preampId);
+  if (!channel || channel.preampBus !== 'local') return false;
+  const L = linePreampIds.includes(channel.preampId);
+  const R = channel.preampIdR && linePreampIds.includes(channel.preampIdR);
+  return L && (!channel.preampIdR || R);
 }
 
 function saveStateToServer(currentShow) {
@@ -70,10 +73,27 @@ function normalizeChannelPreamp(channel) {
     channel.preampId = Math.max(1, Math.min(PREAMP_LOCAL_MAX, channel.preampId));
   if (channel.preampBus === 'slink' && (channel.preampId < 1 || channel.preampId > PREAMP_SLINK_MAX))
     channel.preampId = Math.max(1, Math.min(PREAMP_SLINK_MAX, channel.preampId));
+  // Stereo: optional right preamp (0 = mono)
+  const r = channel.preampIdR != null ? parseInt(channel.preampIdR, 10) : 0;
+  channel.preampIdR = (r >= 1 && r !== channel.preampId) ? r : 0;
+  if (channel.preampBus === 'local' && (channel.preampIdR < 1 || channel.preampIdR > PREAMP_LOCAL_MAX))
+    channel.preampIdR = 0;
+  if (channel.preampBus === 'slink' && (channel.preampIdR < 1 || channel.preampIdR > PREAMP_SLINK_MAX))
+    channel.preampIdR = 0;
+}
+
+function usedPreampSlots() {
+  const used = new Set();
+  channels.forEach((c) => {
+    const bus = c.preampBus || 'local';
+    used.add(`${bus}:${c.preampId ?? c.channel ?? 1}`);
+    if (c.preampIdR) used.add(`${bus}:${c.preampIdR}`);
+  });
+  return used;
 }
 
 function nextPreamp(bus) {
-  const used = new Set(channels.map((c) => `${c.preampBus || 'local'}:${c.preampId ?? c.channel ?? 1}`));
+  const used = usedPreampSlots();
   const max = bus === 'slink' ? PREAMP_SLINK_MAX : PREAMP_LOCAL_MAX;
   for (let id = 1; id <= max; id++) {
     if (!used.has(`${bus}:${id}`)) return id;

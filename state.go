@@ -10,13 +10,14 @@ import (
 )
 
 type ChannelState struct {
-	ID        int     `json:"id"`
-	Name      string  `json:"name"`
-	PreampBus string  `json:"preampBus"`
-	PreampId  int     `json:"preampId"`
-	Phantom   bool    `json:"phantom"`
-	Pad       bool    `json:"pad"`
-	Gain      float64 `json:"gain"`
+	ID         int     `json:"id"`
+	Name       string  `json:"name"`
+	PreampBus  string  `json:"preampBus"`
+	PreampId   int     `json:"preampId"`
+	PreampIdR  int     `json:"preampIdR,omitempty"` // optional right preamp for stereo; 0 = mono
+	Phantom    bool    `json:"phantom"`
+	Pad        bool    `json:"pad"`
+	Gain       float64 `json:"gain"`
 }
 
 // stateFile is the persisted format (state.json). Backward compatible: LoadState also accepts legacy array-only JSON.
@@ -135,8 +136,12 @@ func UpdatePhantom(bus string, preampId int, on bool) {
 	stateMu.Lock()
 	defer stateMu.Unlock()
 	for i := range stateChans {
-		if stateChans[i].PreampBus == bus && stateChans[i].PreampId == preampId {
-			stateChans[i].Phantom = on
+		c := &stateChans[i]
+		if c.PreampBus != bus {
+			continue
+		}
+		if c.PreampId == preampId || c.PreampIdR == preampId {
+			c.Phantom = on
 		}
 	}
 	_ = saveStateLocked()
@@ -146,8 +151,12 @@ func UpdatePad(bus string, preampId int, on bool) {
 	stateMu.Lock()
 	defer stateMu.Unlock()
 	for i := range stateChans {
-		if stateChans[i].PreampBus == bus && stateChans[i].PreampId == preampId {
-			stateChans[i].Pad = on
+		c := &stateChans[i]
+		if c.PreampBus != bus {
+			continue
+		}
+		if c.PreampId == preampId || c.PreampIdR == preampId {
+			c.Pad = on
 		}
 	}
 	_ = saveStateLocked()
@@ -157,8 +166,12 @@ func UpdateGain(bus string, preampId int, db float64) {
 	stateMu.Lock()
 	defer stateMu.Unlock()
 	for i := range stateChans {
-		if stateChans[i].PreampBus == bus && stateChans[i].PreampId == preampId {
-			stateChans[i].Gain = db
+		c := &stateChans[i]
+		if c.PreampBus != bus {
+			continue
+		}
+		if c.PreampId == preampId || c.PreampIdR == preampId {
+			c.Gain = db
 		}
 	}
 	_ = saveStateLocked()

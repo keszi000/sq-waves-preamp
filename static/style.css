@@ -283,6 +283,16 @@ main {
   width: 4.5rem;
 }
 
+.channel-preamp-stereo-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-left: 0.25rem;
+}
+
+.channel-preamp-row select.channel-preamp-id-r {
+  width: 4.5rem;
+}
+
 .toggle-wrap {
   display: flex;
   align-items: center;
